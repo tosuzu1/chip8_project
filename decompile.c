@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
 #define OPCODE_SIZE_INBYTES 2
 
 int main(int argc, char *argv[]) {
@@ -10,8 +12,9 @@ int main(int argc, char *argv[]) {
 
     FILE *programFile, *decompileFile;
     int fileSize = 0;
-    char * buffer; //stores op code
+    unsigned char * buffer; //stores op code
     buffer = (char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES);
+    uint16_t opcode;
     size_t result;
 
     programFile = fopen(argv[1], "r");
@@ -44,8 +47,76 @@ int main(int argc, char *argv[]) {
 
     //read from programfile until EOF
     while(!feof(programFile)) {
+        memset(buffer,0,OPCODE_SIZE_INBYTES);
         result = fread(buffer,1,OPCODE_SIZE_INBYTES, programFile);
-        printf("DEBUG: opcode reads %x , %x\n", buffer[0],buffer[1]);
+        if(feof(programFile)) {
+            break;
+        }
+        opcode = 0;
+        opcode = buffer[0];
+        opcode = opcode << 8;
+        opcode = opcode | buffer[1];
+        printf("DEBUG: opcode reads %#8x , %#8x, %d\n", buffer[0],buffer[1], opcode);
+
+        if(buffer[0] >> 4 == 0x0 ) {
+            if((buffer[0] & 0xF == 0) && buffer[1] == 0xE0) {
+                //Clears the screen.
+            }
+            else if((buffer[0] & 0xF == 0) && buffer[1] == 0xEE) {
+                //return subroutine
+            }
+            else {
+                // Call RCA 1802
+            }
+        }
+        else if (buffer[0] >> 4 == 0x1) {
+            //JUMP
+        }
+        else if (buffer[0] >> 4 == 0x2) {
+            //Call subroutine
+        }
+        else if (buffer[0] >> 4 == 0x3) {
+            //if(Vx == NN)
+        }
+        else if (buffer[0] >> 4 == 0x4) {
+            //if(Vx!=NN)
+        }
+        else if (buffer[0] >> 4 == 0x5) {
+            //if(Vx==Vy)
+        }
+        else if (buffer[0] >> 4 == 0x6) {
+            //Vx = NN
+        }
+        else if (buffer[0] >> 4 == 0x7) {
+            //Vx += NN
+        }
+        else if (buffer[0] >> 4 == 0x8) {
+            // math function to do
+        }
+        else if (buffer[0] >> 4 == 0x9) {
+            //if(Vx!=Vy)
+        }
+        else if (buffer[0] >> 4 == 0xA) {
+            //	I = NNN
+        }
+        else if (buffer[0] >> 4 == 0xB) {
+            //PC=V0+NNN
+        }
+        else if (buffer[0] >> 4 == 0xC) {
+            //Vx=rand()&NN
+        }
+        else if (buffer[0] >> 4 == 0xD) {
+            //	draw(Vx,Vy,N)
+        }
+        else if (buffer[0] >> 4 == 0xE) {
+            //KeyOp
+        }
+        else if (buffer[0] >> 4 == 0xF) {
+            //timer and sound
+        }
+        else {
+            //unexpected behavior
+        }
     }
 
 
