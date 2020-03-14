@@ -1,0 +1,9 @@
+lea		a1,	#$1000	;load effective address $1000 (0x1000 in hex) into general register a1
+lea		a2, #$1008	;load effective address $1800 (0x1008 in hex) into general register a2
+
+move.l	d0, (a2)	;move a long word(16 bit?) of the value of the address in a2 (say a2 was a pointer, then *a2 will return the value at the address *a2)
+;so now d0 (data register 0) contains the value that address held say *0x1000 = 3, then d0 now contain the value 3
+;I am not sure but it seems () around a register that contain a address return the value at address instead of just the address
+
+add.l	d0,	#$64	;add a long word 0x64 to data register and assign it to d0.
+move	(a1),d0		;move the value of data register0 into a1's value, causes *0x1000 = 0x67 if using previous example
