@@ -7,3 +7,11 @@ move.l	d0, (a2)	;move a long word(16 bit?) of the value of the address in a2 (sa
 
 add.l	d0,	#$64	;add a long word 0x64 to data register and assign it to d0.
 move	(a1),d0		;move the value of data register0 into a1's value, causes *0x1000 = 0x67 if using previous example
+
+NNN: address
+NN: 8-bit constant
+N: 4-bit constant
+X and Y: 4-bit register identifier
+PC : Program Counter, for this program it starts at 0x0200
+I : 16bit register (For memory address) (Similar to void pointer)	
+VN: One of the 16 available variables. N may be 0 to F (hexadecimal)' These are 8bit , VF is a flag register
