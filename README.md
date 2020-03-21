@@ -6,7 +6,7 @@ The emulator shall be able to disassemble a Chip-8 ROM and produce source assemb
 	1) accept a input of file name {CHECK}
 	2) read every 16 bit and output source code {PARTIAL}
 		If statement to check which opcode, need to interpt to assembly
-	3) write to file, check see if file already exist,
+		it seem there not offical assembly instruction and I could make up my own.
 
 The emulator shall be capable of executing a Chip-8 ROM without crashing.
 
