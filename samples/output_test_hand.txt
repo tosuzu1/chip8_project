@@ -1,17 +1,17 @@
-A2 1E	;Set address I to 0x21E
-C2 01	;Var2 = random() && 0x01
-32 01 	;if Var2 == 0x01
-A2 1A 	;Set Address I to 0x21A
-D0 14	;Draw(Var0, Var 1, Var 4) draw a pixel 8 width and var4 high at Var0 x Var 1
-70 04	; add 0x04 to Var 0
-30 40	; if (var 0 == 0x40)
-12 00 	;Jump 0x200
-60 00	;set var0 to 0x0
-71 04	;add 0x04 to var1
-31 20	;if (var 1 == 0x20)
-12 00 	;JUMP 0x200
-12 18	;JUMP 0x218
-80 40	;Var0 = Var4
-20 10	;Subroutine at 0x010
-20 40	;subroutine at 0x040
-80 10	;Var 0 = Var1
+0200	A2 1E	;Set address I to 0x21E
+0202	C2 01	;Var2 = random() && 0x01
+0204	32 01 	;if Var2 == 0x01
+0206	A2 1A 	;Set Address I to 0x21A
+0208	D0 14	;Draw(Var0, Var 1, Var 4) draw a pixel 8 width and var4 high at Var0 x Var 1
+020a	70 04	; add 0x04 to Var 0
+020c	30 40	; if (var 0 == 0x40)
+020e	12 00 	;Jump 0x200
+0210	60 00	;set var0 to 0x0
+0212	71 04	;add 0x04 to var1
+0214	31 20	;if (var 1 == 0x20)
+0216	12 00 	;JUMP 0x200
+0218	12 18	;JUMP 0x218
+021a	80 40	;Var0 = Var4
+021c	20 10	;Subroutine at 0x010
+021e	20 40	;subroutine at 0x040
+0220	80 10	;Var 0 = Var1
