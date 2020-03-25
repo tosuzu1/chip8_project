@@ -1,3 +1,4 @@
+for maze.ch8
 0200	A2 1E	;Set address I to 0x21E
 0202	C2 01	;Var2 = random() && 0x01
 0204	32 01 	;if Var2 == 0x01
