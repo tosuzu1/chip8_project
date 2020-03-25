@@ -68,8 +68,8 @@ int main(int argc, char *argv[]) {
                 printf("%#06X\t\t%02X %02X\t\trts\n",programCounter, buffer[0],buffer[1]);
             }
             else {
-                // Call RCA 1802
-                printf("%#06X\t\t%02X %02X\t\tTESTCODE\n",programCounter, buffer[0],buffer[1]);
+                // Call RCA 1802 programs
+                printf("%#06X\t\t%02X %02X\t\tcall\t%#05X\n",programCounter, buffer[0],buffer[1],(opcode & 0xFFF));
             }
         }
         else if (buffer[0] >> 4 == 0x1) {
@@ -106,35 +106,35 @@ int main(int argc, char *argv[]) {
                 //vx = vy
                 printf("%#06X\t\t%02X %02X\t\tmov\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
             }
-            else if(buffer[1] & 0x0F == 0x01) {
+            else if((buffer[1] & 0x0F) == 0x01) {
                 //vx = vy|vy
                 printf("%#06X\t\t%02X %02X\t\tor\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
             }
-            else if(buffer[1] & 0x0F == 0x02) {
+            else if((buffer[1] & 0x0F) == 0x02) {
                 //vx = vy&vy
                 printf("%#06X\t\t%02X %02X\t\tand\tV%1X, V%1X\n",programCounter,buffer[0],buffer[1], (buffer[0] & 0xF),(buffer[1] & 0xF0));
             }
-            else if(buffer[1] & 0x0F == 0x03) {
+            else if((buffer[1] & 0x0F) == 0x03) {
                 //vx = vy^vy
                 printf("%#06X\t\t%02X %02X\t\txor\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
             }
-            else if(buffer[1] & 0x0F == 0x04) {
+            else if((buffer[1] & 0x0F) == 0x04) {
                 //vx += vy
                 printf("%#06X\t\t%02X %02X\t\tadd\tV%1X, V%1X\n",programCounter,buffer[0],buffer[1], (buffer[0] & 0xF),(buffer[1] & 0xF0));
             }
-            else if(buffer[1] & 0x0F == 0x05) {
+            else if((buffer[1] & 0x0F) == 0x05) {
                 //vx -= vy
                 printf("%#06X\t\t%02X %02X\t\tsub\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
             }
-            else if(buffer[1] & 0x0F == 0x06) {
+            else if((buffer[1] & 0x0F) == 0x06) {
                 //Vx>>=1
                 printf("%#06X\t\t%02X %02X\t\tshift.r\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
             }
-            else if(buffer[1] & 0x0F == 0x07) {
+            else if((buffer[1] & 0x0F) == 0x07) {
                 //Vx=Vy-Vx
                 printf("%#06X\t\t%02X %02X\t\tsub.rev\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
             }
-            else if(buffer[1] & 0x0F == 0x0E) {
+            else if((buffer[1] & 0x0F) == 0x0E) {
                 //Vx=Vy-Vx
                 printf("%#06X\t\t%02X %02X\t\tshift.l\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
             }
@@ -212,7 +212,7 @@ int main(int argc, char *argv[]) {
                 //reg_dump at I
                 printf("%#06X\t\t%02X %02X\t\tstore\t\tI, V%1X\n",programCounter, buffer[0],buffer[1],buffer[0] & 0xF);
             }
-              else if(buffer[1] == 0x55) {
+              else if(buffer[1] == 0x65) {
                 //reg_load at I
                 printf("%#06X\t\t%02X %02X\t\tload\t\tI, V%1X\n",programCounter, buffer[0],buffer[1],buffer[0] & 0xF);
             }
