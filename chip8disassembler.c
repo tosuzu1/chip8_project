@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
     }
 
     //Variables used
-    FILE *programFile, *decompileFile;
+    FILE *programFile;
     int fileSize = 0, programCounter = 0x200;
     unsigned char * buffer = (char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     uint16_t opcode;
@@ -228,6 +228,6 @@ int main(int argc, char *argv[]) {
         programCounter++;
     }
 
-
+    free(buffer);
     return 0;
 }
