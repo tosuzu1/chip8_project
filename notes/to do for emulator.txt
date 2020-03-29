@@ -10,3 +10,5 @@ oxea0 to 0xeff are for stack, interuse and other varibles
 60 hz timer
 display is 64 x 32 pixels monochrome color
 hex keyboard
+
+display most likley to use Ncurses
