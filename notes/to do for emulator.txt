@@ -1,0 +1,12 @@
+1. build parameters for chip8
+16 registers that hold 8 bit of data
+vf (v15) is used to store flags (carry etc)
+stack allocated for 48 bytes
+memory that has 16 bytes blocks,
+code is loaded starting at block 200
+stored in big endian
+0xF00 to 0xfff for for display
+oxea0 to 0xeff are for stack, interuse and other varibles
+60 hz timer
+display is 64 x 32 pixels monochrome color
+hex keyboard
