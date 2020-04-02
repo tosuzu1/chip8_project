@@ -225,7 +225,7 @@ int main(int argc, char *argv[]) {
             //unexpected behavior
             printf("%#06X\t\t%02X %02X\t\tERROR\n",programCounter, buffer[0],buffer[1]);
         }
-        programCounter++;
+        programCounter += 2;
     }
 
     free(buffer);
