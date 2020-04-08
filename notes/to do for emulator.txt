@@ -12,3 +12,4 @@ display is 64 x 32 pixels monochrome color
 hex keyboard
 
 display most likley to use Ncurses
+sprites are xor to screen
