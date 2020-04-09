@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <curses.h>
 
 #define DISPLAY_RESOLUTION_HORIZONTAL 64
 #define DISPLAY_RESOLUTION_VERTICAL 32
@@ -10,7 +11,18 @@
 #define CHIP8_MEMORY_LIMIT 4096
 #define CHIP8_STACK_SIZE 16
 
+<<<<<<< HEAD
 typedef struct chip8processor { 
+=======
+void debug_processorstate() {
+    printf("DEBUG: PROCESSOR STATES\n");
+    for(int i = 0; i < 16; i++) {
+        printf("REG%d : %2x \n", i,p1.registers[i]);
+    }
+}
+
+struct chip8processor { 
+>>>>>>> master
     uint8_t memory[CHIP8_MEMORY_LIMIT]; 
     uint8_t registers[16];
     // uint16_t stack[CHIP8_STACK_SIZE];        //Stack is now inside of memory
@@ -118,10 +130,23 @@ int main(int argc, char *argv[]) {
         printf("DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1->memory[i],p1->memory[i+1]);
     }
 
+<<<<<<< HEAD
     while(0 == 0) {
         debug_chip8_state(p1);
 
         if ((p1->memory[p1->programCounter] >> 4) == 0x0){
+=======
+    //Init ncurse
+    initsrc();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+
+    WINDOW * win = newwin(DISPLAY_RESOLUTION_VERTICAL, DISPLAY_RESOLUTION_HORIZONTAL, 0, 0);
+
+    while(0) {
+        if ((p1.memory[p1.programCounter] >> 4) == 0x0){
+>>>>>>> master
             //0x00 intructsions
             if((p1->memory[p1->programCounter] & 0xf) == 0x0 && 
             (p1->memory[p1->programCounter + 1] >> 4) == 0x0) {
@@ -383,6 +408,8 @@ int main(int argc, char *argv[]) {
         p1->programCounter += 2;
         
     }
+
+    endwin();
 
     return 1;
 }
