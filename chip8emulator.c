@@ -72,7 +72,7 @@ void debug_chip8_state(chip8processor* p1) {
 
 void view_program_memory(chip8processor* p1) {
       //Debug
-    for(unsigned int i = p1->programCounter; (p1->memory[i] != 0) || (p1->memory[i+1] != 0); i += 2) {
+    for(unsigned int i = 0x200; (p1->memory[i] != 0) || (p1->memory[i+1] != 0); i += 2) {
         printf("DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1->memory[i],p1->memory[i+1]);
     }
 }
