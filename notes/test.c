@@ -6,4 +6,6 @@ int main() {
     double b = 0;
     b = (double)a/60;
     printf("double = %lf\n", b);
+    perror("This is a ERror\n");
+    printf("did something\n");
 }

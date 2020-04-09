@@ -3,7 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
- #include <unistd.h>    //for sleep function testing
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>    //for sleep function testing
 
 #define DISPLAY_RESOLUTION_HORIZONTAL 64
 #define DISPLAY_RESOLUTION_VERTICAL 32
@@ -86,7 +89,8 @@ int main(int argc, char *argv[]) {
     long int fileSize;
     unsigned char * buffer = (char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     size_t result;
-    srand(time(0));     // Used for random number generator but is vunable to timing attacks
+    uint32_t* randbits;
+    //srand(time(0));     // Used for random number generator but is vunable to timing attacks
     // TODO use /dev/random         this makes it non portal to non-unix OS so look into it
     clock_t time_begin = 0, time_end = 0;
 
@@ -138,6 +142,13 @@ int main(int argc, char *argv[]) {
     // Reset program counter to base and closes the file
     p1->programCounter = 0x200;
     fclose(programFile);
+
+    int randomData = open("/dev/urandom", O_RDONLY);// 
+    if (randomData < 0)
+    {
+        // something went wrong
+        perror("ERROR: Cannot open /dev/urandom\n");
+    }   
 
     view_program_memory(p1);
 
@@ -346,7 +357,8 @@ int main(int argc, char *argv[]) {
             continue;
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xc) {
-            p1->registers[p1->memory[p1->programCounter] & 0xf ] = (rand() % 255) & p1->memory[p1->programCounter + 1];
+            ssize_t result = read(randomData, randbits, sizeof(randbits));
+            p1->registers[p1->memory[p1->programCounter] & 0xf ] = *randbits & p1->memory[p1->programCounter + 1];
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xd) {
             //Draw
@@ -415,6 +427,7 @@ int main(int argc, char *argv[]) {
             else if(p1->memory[p1->programCounter + 1] == 0xff) {
                 //Special DEBUG command to exit process because there no exist command in chip8 atm
                 view_program_memory(p1);
+                close(randomData);
                 exit(1);
             }
             else {
@@ -441,6 +454,6 @@ int main(int argc, char *argv[]) {
         
     }
 
-
+    close(randomData);
     return 1;
 }
