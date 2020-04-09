@@ -67,6 +67,13 @@ void debug_chip8_state(chip8processor* p1) {
     printf("\n");
 }
 
+void view_program_memory(chip8processor* p1) {
+      //Debug
+    for(unsigned int i = p1->programCounter; (p1->memory[i] != 0) || (p1->memory[i+1] != 0); i += 2) {
+        printf("DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1->memory[i],p1->memory[i+1]);
+    }
+}
+
 int main(int argc, char *argv[]) {
     //Check too she if a filename was given
     if (argc != 2) {
@@ -132,10 +139,7 @@ int main(int argc, char *argv[]) {
     p1->programCounter = 0x200;
     fclose(programFile);
 
-    //Debug
-    for(unsigned int i = p1->programCounter; (p1->memory[i] != 0) || (p1->memory[i+1] != 0); i += 2) {
-        printf("DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1->memory[i],p1->memory[i+1]);
-    }
+    view_program_memory(p1);
 
     while(0 == 0) {
         debug_chip8_state(p1);
@@ -410,6 +414,7 @@ int main(int argc, char *argv[]) {
             }
             else if(p1->memory[p1->programCounter + 1] == 0xff) {
                 //Special DEBUG command to exit process because there no exist command in chip8 atm
+                view_program_memory(p1);
                 exit(1);
             }
             else {
