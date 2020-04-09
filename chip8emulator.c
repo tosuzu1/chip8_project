@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+ #include <unistd.h>    //for sleep function testing
 
 #define DISPLAY_RESOLUTION_HORIZONTAL 64
 #define DISPLAY_RESOLUTION_VERTICAL 32
@@ -17,11 +18,15 @@ typedef struct chip8processor {
     // uint16_t stack[CHIP8_STACK_SIZE];        //Stack is now inside of memory
     uint16_t stackSize;
     uint8_t delayTimer;
+    uint8_t delayFlag;
     uint8_t soundTimer;
+    uint8_t soundFlag;
     unsigned char userinput;
     uint16_t programCounter;
     uint16_t stackPointer;
     uint16_t addressRegister;
+    double time_spent_sound;
+    double time_spent_delay;
 } chip8processor;   
 
 chip8processor* init_chip8(void) {
@@ -31,11 +36,15 @@ chip8processor* init_chip8(void) {
     // memset(p1->stack,0,sizeof(uint16_t)*CHIP8_STACK_SIZE);
     p1->stackSize = 0x0;
     p1->delayTimer = 0x0;
+    p1->delayFlag = 0;
     p1->soundTimer = 0x0;
+    p1->soundFlag = 0;
     p1->userinput = 0x0;
     p1->programCounter = 0x200;
     p1->stackPointer = 0xea0;
     p1->addressRegister = 0x0;
+    p1->time_spent_sound = 0.0;
+    p1->time_spent_delay = 0.0;
     return p1;
 }
 
@@ -48,6 +57,8 @@ void debug_chip8_state(chip8processor* p1) {
     printf("program counter: %x\n", p1->programCounter);
     printf("Address Reg %x\n", p1->addressRegister);
     printf("Current opcode %#0X%02X\n", p1->memory[p1->programCounter],p1->memory[p1->programCounter+1]);
+    printf("SoundTimer = %x\n",p1->soundTimer);
+    printf("DelayTimer = %x\n",p1->delayTimer);
     printf("\n");
 }
 
@@ -65,6 +76,7 @@ int main(int argc, char *argv[]) {
     size_t result;
     srand(time(0));     // Used for random number generator but is vunable to timing attacks
     // TODO use /dev/random         this makes it non portal to non-unix OS so look into it
+    clock_t time_begin = 0, time_end = 0;
 
     programFile = fopen(argv[1], "r");
 
@@ -122,6 +134,18 @@ int main(int argc, char *argv[]) {
 
     while(0 == 0) {
         debug_chip8_state(p1);
+
+        if(p1->delayFlag != 0) {
+            //Delay program
+            if(p1->time_spent_delay >= (double)p1->delayTimer/60) {
+                p1->delayFlag = 0;
+                p1->programCounter += 2;
+            }
+            time_end = clock();
+            p1->time_spent_delay += (double)(time_end - time_begin) / CLOCKS_PER_SEC;
+            time_begin = time_end;
+            continue;
+        }
 
         if ((p1->memory[p1->programCounter] >> 4) == 0x0){
             //0x00 intructsions
@@ -244,27 +268,27 @@ int main(int argc, char *argv[]) {
         else if ((p1->memory[p1->programCounter] >> 4) == 0x8) {
             // Commmand Vx = Vy
             if((p1->memory[p1->programCounter + 1] & 0x0f) == 0x0) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter + 1] & 0xf0];
+                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
             }
             // Command Vx = Vx | Vy
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x1) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter + 1] & 0xf0] | p1->registers[p1->memory[p1->programCounter] & 0x0f];
+                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] | p1->registers[p1->memory[p1->programCounter] & 0x0f];
             }
             // Commmand 	Vx=Vx&Vy
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x2) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter + 1] & 0xf0] & p1->registers[p1->memory[p1->programCounter] & 0x0f];
+                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] & p1->registers[p1->memory[p1->programCounter] & 0x0f];
             }
             // Commmand 	Vx=Vx^Vy
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x3) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter + 1] & 0xf0] ^ p1->registers[p1->memory[p1->programCounter] & 0x0f];
+                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] ^ p1->registers[p1->memory[p1->programCounter] & 0x0f];
             }
             // Command Vx += Vy
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x4) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] += p1->registers[p1->memory[p1->programCounter + 1] & 0xf0];
+                p1->registers[p1->memory[p1->programCounter] & 0x0f] += p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
             }
             // Command Vx -= Vy
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x5) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] -= p1->registers[p1->memory[p1->programCounter + 1] & 0xf0];
+                p1->registers[p1->memory[p1->programCounter] & 0x0f] -= p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
             }
             // Command Vx >>= 1
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x6) {
@@ -272,7 +296,7 @@ int main(int argc, char *argv[]) {
             }
             // Command Vx = Vy - Vx
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x7) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter + 1] & 0xf0] - p1->registers[p1->memory[p1->programCounter] & 0x0f];
+                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] - p1->registers[p1->memory[p1->programCounter] & 0x0f];
             }
             // Command Vx <<= 1
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0xe) {
@@ -281,7 +305,7 @@ int main(int argc, char *argv[]) {
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0x9) {
             // Skip if Vx != Vy
-            if(p1->registers[p1->memory[p1->programCounter] & 0xf] != p1->registers[p1->memory[p1->programCounter + 1] & 0xf0] &&
+            if(p1->registers[p1->memory[p1->programCounter] & 0xf] != p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] &&
             (p1->memory[p1->programCounter + 1] & 0x0f) == 0) {
                 p1->programCounter += 2;
             }
@@ -307,11 +331,14 @@ int main(int argc, char *argv[]) {
             tempAddress = tempAddress | p1->memory[p1->programCounter + 1]; 
 
             tempAddress += p1->registers[0];
+            //DEBUG
+            printf("TEMP ADD = %X]\n", tempAddress);
             if(tempAddress < 0x200 || tempAddress > 0xEA0) {
                 perror("ERROR: Program ran out of memory bounds\n");
             }
 
             p1->programCounter = tempAddress;
+            continue;
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xc) {
             p1->registers[p1->memory[p1->programCounter] & 0xf ] = (rand() % 255) & p1->memory[p1->programCounter + 1];
@@ -332,9 +359,18 @@ int main(int argc, char *argv[]) {
             }
             else if(p1->memory[p1->programCounter + 1] == 0x15) {
                 //delay
+                time_begin = clock();
+                p1->delayFlag = 1;
+                p1->delayTimer = p1->registers[p1->memory[p1->programCounter] & 0x0f];
+                p1->time_spent_delay = 0;
+                continue;
             }
             else if(p1->memory[p1->programCounter + 1] == 0x18) {
                 //sound timer
+                time_begin = clock();
+                p1->soundFlag = 1;
+                p1->soundTimer = p1->registers[p1->memory[p1->programCounter] & 0x0f];
+                p1->time_spent_sound = 0;
             }
             else if(p1->memory[p1->programCounter + 1] == 0x1e) {
                 p1->addressRegister += p1->registers[p1->memory[p1->programCounter] & 0x0f];
@@ -385,6 +421,18 @@ int main(int argc, char *argv[]) {
 
         // Increment programer
         p1->programCounter += 2;
+
+        if(p1->soundFlag != 0) {
+            //Sound will play
+            if(p1->time_spent_sound >= (double)p1->soundTimer/60) {
+                printf("\a");
+                printf("this debug sound \n");
+                p1->soundFlag = 0;
+            }
+            time_end = clock();
+            p1->time_spent_sound += (double)(time_end - time_begin) / CLOCKS_PER_SEC;
+            time_begin = time_end;
+        }
         
     }
 

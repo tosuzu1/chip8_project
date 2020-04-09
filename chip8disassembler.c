@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
         }
         else if (buffer[0] >> 4 == 0x5) {
             //if(Vx==Vy)
-            printf("%#06X\t\t%02X %02X\t\tskip.eq\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
+            printf("%#06X\t\t%02X %02X\t\tskip.eq\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4);
         }
         else if (buffer[0] >> 4 == 0x6) {
             //Vx = NN
@@ -104,39 +104,39 @@ int main(int argc, char *argv[]) {
             // math function to do
             if((buffer[1] & 0x0F) == 0) {
                 //vx = vy
-                printf("%#06X\t\t%02X %02X\t\tmov\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
+                printf("%#06X\t\t%02X %02X\t\tmov\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4 >> 4);
             }
             else if((buffer[1] & 0x0F) == 0x01) {
                 //vx = vy|vy
-                printf("%#06X\t\t%02X %02X\t\tor\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
+                printf("%#06X\t\t%02X %02X\t\tor\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4 >> 4);
             }
             else if((buffer[1] & 0x0F) == 0x02) {
                 //vx = vy&vy
-                printf("%#06X\t\t%02X %02X\t\tand\tV%1X, V%1X\n",programCounter,buffer[0],buffer[1], (buffer[0] & 0xF),(buffer[1] & 0xF0));
+                printf("%#06X\t\t%02X %02X\t\tand\tV%1X, V%1X\n",programCounter,buffer[0],buffer[1], (buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4 >> 4);
             }
             else if((buffer[1] & 0x0F) == 0x03) {
                 //vx = vy^vy
-                printf("%#06X\t\t%02X %02X\t\txor\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
+                printf("%#06X\t\t%02X %02X\t\txor\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4 >> 4);
             }
             else if((buffer[1] & 0x0F) == 0x04) {
                 //vx += vy
-                printf("%#06X\t\t%02X %02X\t\tadd\tV%1X, V%1X\n",programCounter,buffer[0],buffer[1], (buffer[0] & 0xF),(buffer[1] & 0xF0));
+                printf("%#06X\t\t%02X %02X\t\tadd\tV%1X, V%1X\n",programCounter,buffer[0],buffer[1], (buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4 >> 4);
             }
             else if((buffer[1] & 0x0F) == 0x05) {
                 //vx -= vy
-                printf("%#06X\t\t%02X %02X\t\tsub\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
+                printf("%#06X\t\t%02X %02X\t\tsub\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4 >> 4);
             }
             else if((buffer[1] & 0x0F) == 0x06) {
                 //Vx>>=1
-                printf("%#06X\t\t%02X %02X\t\tshift.r\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
+                printf("%#06X\t\t%02X %02X\t\tshift.r\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4 >> 4);
             }
             else if((buffer[1] & 0x0F) == 0x07) {
                 //Vx=Vy-Vx
-                printf("%#06X\t\t%02X %02X\t\tsub.rev\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
+                printf("%#06X\t\t%02X %02X\t\tsub.rev\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4);
             }
             else if((buffer[1] & 0x0F) == 0x0E) {
                 //Vx=Vy-Vx
-                printf("%#06X\t\t%02X %02X\t\tshift.l\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
+                printf("%#06X\t\t%02X %02X\t\tshift.l\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4);
             }
             else {
                 //Undefined at
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
         }
         else if (buffer[0] >> 4 == 0x9) {
             //if(Vx!=Vy)
-            printf("%#06X\t\t%02X %02X\t\tskip.eq\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0));
+            printf("%#06X\t\t%02X %02X\t\tskip.eq\tV%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4 >> 4);
         }
         else if (buffer[0] >> 4 == 0xA) {
             //	I = NNN
@@ -154,15 +154,15 @@ int main(int argc, char *argv[]) {
         }
         else if (buffer[0] >> 4 == 0xB) {
             //PC=V0+NNN
-            printf("%#06X\t\t%02X %02X\t\tjump.add\tV%1X, %#05X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(opcode & 0xFFF));
+            printf("%#06X\t\t%02X %02X\t\tjump.add\tV0, %#05X\n",programCounter, buffer[0],buffer[1],(opcode & 0xFFF));
         }
         else if (buffer[0] >> 4 == 0xC) {
             //Vx=rand()&NN
-            printf("%#06X\t\t%02X %02X\t\trand\tV%1X, %#04X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(opcode & 0xFFF));
+            printf("%#06X\t\t%02X %02X\t\trand\tV%1X, %#04X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(opcode & 0xFF));
         }
         else if (buffer[0] >> 4 == 0xD) {
             //	draw(Vx,Vy,N)
-            printf("%#06X\t\t%02X %02X\t\tdraw\tV%1X, V%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0),(buffer[1] & 0xF));
+            printf("%#06X\t\t%02X %02X\t\tdraw\tV%1X, V%1X, V%1X\n",programCounter, buffer[0],buffer[1],(buffer[0] & 0xF),(buffer[1] & 0xF0) >> 4,(buffer[1] & 0xF));
         }
         else if (buffer[0] >> 4 == 0xE) {
             if(buffer[1] == 0x9E) {
