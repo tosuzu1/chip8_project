@@ -3,12 +3,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <curses.h>
 
 #define DISPLAY_RESOLUTION_HORIZONTAL 64
 #define DISPLAY_RESOLUTION_VERTICAL 32
 #define OPCODE_SIZE_INBYTES 2
 #define CHIP8_MEMORY_LIMIT 4096
 #define CHIP8_STACK_SIZE 16
+
+void debug_processorstate() {
+    printf("DEBUG: PROCESSOR STATES\n");
+    for(int i = 0; i < 16; i++) {
+        printf("REG%d : %2x \n", i,p1.registers[i]);
+    }
+}
 
 struct chip8processor { 
     uint8_t memory[CHIP8_MEMORY_LIMIT]; 
@@ -102,6 +110,14 @@ int main(int argc, char *argv[]) {
     for(unsigned int i = p1.programCounter; p1.memory[i] != 0; i += 2) {
         printf("DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1.memory[i],p1.memory[i+1]);
     }
+
+    //Init ncurse
+    initsrc();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+
+    WINDOW * win = newwin(DISPLAY_RESOLUTION_VERTICAL, DISPLAY_RESOLUTION_HORIZONTAL, 0, 0);
 
     while(0) {
         if ((p1.memory[p1.programCounter] >> 4) == 0x0){
@@ -362,6 +378,8 @@ int main(int argc, char *argv[]) {
         p1.programCounter += 2;
         
     }
+
+    endwin();
 
     return 1;
 }
