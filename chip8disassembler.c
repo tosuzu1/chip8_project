@@ -59,11 +59,11 @@ int main(int argc, char *argv[]) {
         //printf("%#06X\t\t%02X %02X\t\tTESTCODE\n",programCounter, buffer[0],buffer[1]);
 
         if(buffer[0] >> 4 == 0x0 ) {
-            if((buffer[0] & 0xF == 0) && buffer[1] == 0xE0) {
+            if(((buffer[0] & 0xF) == 0) && buffer[1] == 0xE0) {
                 //Clears the screen.
                 printf("%#06X\t\t%02X %02X\t\tclrs\n",programCounter, buffer[0],buffer[1]);
             }
-            else if((buffer[0] & 0xF == 0) && buffer[1] == 0xEE) {
+            else if(((buffer[0] & 0xF) == 0) && buffer[1] == 0xEE) {
                 //return subroutine
                 printf("%#06X\t\t%02X %02X\t\trts\n",programCounter, buffer[0],buffer[1]);
             }

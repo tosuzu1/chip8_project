@@ -9,7 +9,7 @@
 #define DISPLAY_RESOLUTION_VERTICAL 32
 #define OPCODE_SIZE_INBYTES 2
 #define CHIP8_MEMORY_LIMIT 4096
-#define CHIP8_STACK_SIZE 16
+#define CHIP8_STACK_SIZE 12
 
 
 typedef struct chip8processor { 
@@ -59,6 +59,11 @@ void debug_chip8_state(chip8processor* p1) {
     printf("Current opcode %#0X%02X\n", p1->memory[p1->programCounter],p1->memory[p1->programCounter+1]);
     printf("SoundTimer = %x\n",p1->soundTimer);
     printf("DelayTimer = %x\n",p1->delayTimer);
+    printf("stack size = %d\n", p1->stackSize);
+    printf("stackpointer = %x\n", p1->stackPointer);
+    for(int cnt = 0xea0; cnt < (0xea0 + CHIP8_STACK_SIZE); cnt+=2) {
+        printf("Stack %X = %#02X %02X\n", cnt,p1->memory[cnt], p1->memory[cnt +1]);
+    }
     printf("\n");
 }
 
@@ -128,7 +133,7 @@ int main(int argc, char *argv[]) {
     fclose(programFile);
 
     //Debug
-    for(unsigned int i = p1->programCounter; p1->memory[i] != 0; i += 2) {
+    for(unsigned int i = p1->programCounter; (p1->memory[i] != 0) || (p1->memory[i+1] != 0); i += 2) {
         printf("DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1->memory[i],p1->memory[i+1]);
     }
 
@@ -150,24 +155,20 @@ int main(int argc, char *argv[]) {
         if ((p1->memory[p1->programCounter] >> 4) == 0x0){
             //0x00 intructsions
             if((p1->memory[p1->programCounter] & 0xf) == 0x0 && 
-            (p1->memory[p1->programCounter + 1] >> 4) == 0x0) {
+            (p1->memory[p1->programCounter + 1] ) == 0xe0) {
                 //call clear screen
             }
             else if ((p1->memory[p1->programCounter] & 0xf) == 0 && 
-            (p1->memory[p1->programCounter + 1] >> 4) == 0xe) {
-
+            (p1->memory[p1->programCounter + 1] == 0xee)) {
                 if(p1->stackSize == 0) {
                     perror("ERROR: Stack underflowed into memory bounds\n");
                 }
-
+                p1->stackPointer -= 2;
                 uint16_t tempAddress = 0;
                 tempAddress = p1->memory[p1->stackPointer] & 0x0f;
                 tempAddress = tempAddress << 8;
                 tempAddress = tempAddress | p1->memory[p1->stackPointer + 1];
-
-                p1->stackPointer -= 2;
                 p1->stackSize -= 1;
-
                 p1->programCounter = tempAddress;
                 continue;
             }
@@ -220,7 +221,7 @@ int main(int argc, char *argv[]) {
                 perror("ERROR: Stack overflowed into memory bounds\n");
             }
             p1->memory[p1->stackPointer] = ((p1->programCounter + 2) & 0xf00) >> 8;    //grab the programcounter's first 4 bits
-            p1->memory[p1->stackPointer + 1] = (p1->programCounter & 0xff);
+            p1->memory[p1->stackPointer + 1] = ((p1->programCounter + 2) & 0xff);
             p1->stackPointer += 2;
             p1->stackSize += 1;
 
@@ -426,7 +427,6 @@ int main(int argc, char *argv[]) {
             //Sound will play
             if(p1->time_spent_sound >= (double)p1->soundTimer/60) {
                 printf("\a");
-                printf("this debug sound \n");
                 p1->soundFlag = 0;
             }
             time_end = clock();
