@@ -13,6 +13,9 @@ The emulator shall be capable of executing a Chip-8 ROM without crashing.
 
 The emulator shall be able to accept user input via keyboard and produce a graphical display.
 
+Requires Ncurses, 
+sudo apt-get install libncurses5-dev //Debian systems
+
 Useage.
 
 make all  				//Builds both emulator and disassembler

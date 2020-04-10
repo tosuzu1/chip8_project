@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>    //for sleep function testing
+#include <ncurses.h>
 
 #define DISPLAY_RESOLUTION_HORIZONTAL 64
 #define DISPLAY_RESOLUTION_VERTICAL 32
@@ -25,6 +26,7 @@ typedef struct chip8processor {
     uint8_t soundTimer;
     uint8_t soundFlag;
     unsigned char userinput;
+    uint8_t userinput_flag;
     uint16_t programCounter;
     uint16_t stackPointer;
     uint16_t addressRegister;
@@ -32,50 +34,12 @@ typedef struct chip8processor {
     double time_spent_delay;
 } chip8processor;   
 
-chip8processor* init_chip8(void) {
-    chip8processor* p1 = (chip8processor*)malloc(sizeof(chip8processor));
-    memset(p1->memory,0,sizeof(uint8_t)* CHIP8_MEMORY_LIMIT);
-    memset(p1->registers,0,sizeof(uint8_t)*16);
-    // memset(p1->stack,0,sizeof(uint16_t)*CHIP8_STACK_SIZE);
-    p1->stackSize = 0x0;
-    p1->delayTimer = 0x0;
-    p1->delayFlag = 0;
-    p1->soundTimer = 0x0;
-    p1->soundFlag = 0;
-    p1->userinput = 0x0;
-    p1->programCounter = 0x200;
-    p1->stackPointer = 0xea0;
-    p1->addressRegister = 0x0;
-    p1->time_spent_sound = 0.0;
-    p1->time_spent_delay = 0.0;
-    return p1;
-}
+chip8processor* init_chip8(void);
+void destory_chip(chip8processor* pi);
+void debug_chip8_state(chip8processor* p1) ;
+void view_program_memory(chip8processor* p1) ;
+void close_program(chip8processor* pi , int randomData);
 
-void debug_chip8_state(chip8processor* p1) {
-    printf("\nDEBUG: PRCESSOR STATE\n");
-    printf("Reg: \n");
-    for(int cnt = 0; cnt < 16; cnt += 1) {
-        printf("REG %d = %x\n", cnt, p1->registers[cnt]);
-    }
-    printf("program counter: %x\n", p1->programCounter);
-    printf("Address Reg %x\n", p1->addressRegister);
-    printf("Current opcode %#0X%02X\n", p1->memory[p1->programCounter],p1->memory[p1->programCounter+1]);
-    printf("SoundTimer = %x\n",p1->soundTimer);
-    printf("DelayTimer = %x\n",p1->delayTimer);
-    printf("stack size = %d\n", p1->stackSize);
-    printf("stackpointer = %x\n", p1->stackPointer);
-    for(int cnt = 0xea0; cnt < (0xea0 + CHIP8_STACK_SIZE); cnt+=2) {
-        printf("Stack %X = %#02X %02X\n", cnt,p1->memory[cnt], p1->memory[cnt +1]);
-    }
-    printf("\n");
-}
-
-void view_program_memory(chip8processor* p1) {
-      //Debug
-    for(unsigned int i = 0x200; (p1->memory[i] != 0) || (p1->memory[i+1] != 0); i += 2) {
-        printf("DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1->memory[i],p1->memory[i+1]);
-    }
-}
 
 int main(int argc, char *argv[]) {
     //Check too she if a filename was given
@@ -113,7 +77,16 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    //Create a chip8 processor with zero values
     chip8processor* p1 = init_chip8();
+
+    //start ncurses
+    int ch;
+	initscr();			// Start curses mode 		
+	cbreak();			// Line buffering disabled
+	keypad(stdscr, TRUE);		// Capture special key such f1 etc. 
+    noecho();           //Supress echo
+    refresh();
 
     //Load rom into ram
     while(!feof(programFile)) {
@@ -136,6 +109,8 @@ int main(int argc, char *argv[]) {
         // If the program being loaded goes pass limit of the memory, throw a error;
         if(p1->programCounter > 0xF00) {
             perror("Error: Program being loaded excedes the memory of the processor\n");
+            free(p1);
+            exit(1);
         }
     }
 
@@ -148,12 +123,22 @@ int main(int argc, char *argv[]) {
     {
         // something went wrong
         perror("ERROR: Cannot open /dev/urandom\n");
+        exit(1);
     }   
 
-    view_program_memory(p1);
+    #if DEBUG
+        view_program_memory(p1);
+    #endif
+
+    WINDOW * win = newwin(DISPLAY_RESOLUTION_VERTICAL + 2, DISPLAY_RESOLUTION_HORIZONTAL + 2, 0, 0);
+    box(win, 0 , 0);
+    wrefresh(win);
+    wmove(win, 1, 1);
 
     while(0 == 0) {
-        debug_chip8_state(p1);
+        #if DEBUG
+            debug_chip8_state(p1);
+        #endif
 
         if(p1->delayFlag != 0) {
             //Delay program
@@ -172,11 +157,16 @@ int main(int argc, char *argv[]) {
             if((p1->memory[p1->programCounter] & 0xf) == 0x0 && 
             (p1->memory[p1->programCounter + 1] ) == 0xe0) {
                 //call clear screen
+                werase(win);
+                wrefresh(win);
             }
             else if ((p1->memory[p1->programCounter] & 0xf) == 0 && 
             (p1->memory[p1->programCounter + 1] == 0xee)) {
+                //Return from subroutine
                 if(p1->stackSize == 0) {
                     perror("ERROR: Stack underflowed into memory bounds\n");
+                    close_program(p1, randomData);
+                    exit(1);
                 }
                 p1->stackPointer -= 2;
                 uint16_t tempAddress = 0;
@@ -193,6 +183,8 @@ int main(int argc, char *argv[]) {
                 //Store program counter into stack
                 if(p1->stackSize > CHIP8_STACK_SIZE) {
                     perror("ERROR: Stack overflowed into memory bounds\n");
+                    close_program(p1, randomData);
+                    exit(1);
                 }
                 p1->memory[p1->stackPointer] = ((p1->programCounter + 2) & 0xf00) >> 8;    //grab the programcounter's first 4 bits
                 p1->memory[p1->stackPointer + 1] = (p1->programCounter & 0xff);
@@ -206,6 +198,8 @@ int main(int argc, char *argv[]) {
 
                 if(tempAddress > 0xEA0) {
                     perror("ERROR: Program ran out of memory bounds\n");
+                    close_program(p1, randomData);
+                    exit(1);
                 }
 
                 p1->programCounter = tempAddress;
@@ -223,6 +217,8 @@ int main(int argc, char *argv[]) {
 
             if(tempAddress < 0x200 || tempAddress > 0xEA0) {
                 perror("ERROR: Program ran out of memory bounds\n");
+                close_program(p1, randomData);
+                exit(1);
             }
 
             p1->programCounter = tempAddress;
@@ -234,6 +230,8 @@ int main(int argc, char *argv[]) {
             //Store program counter into stack
             if(p1->stackSize > CHIP8_STACK_SIZE) {
                 perror("ERROR: Stack overflowed into memory bounds\n");
+                close_program(p1, randomData);
+                exit(1);
             }
             p1->memory[p1->stackPointer] = ((p1->programCounter + 2) & 0xf00) >> 8;    //grab the programcounter's first 4 bits
             p1->memory[p1->stackPointer + 1] = ((p1->programCounter + 2) & 0xff);
@@ -247,6 +245,8 @@ int main(int argc, char *argv[]) {
 
             if(tempAddress < 0x200 || tempAddress > 0xEA0) {
                 perror("ERROR: Program ran out of memory bounds\n");
+                close_program(p1, randomData);
+                exit(1);
             }
 
             p1->programCounter = tempAddress;
@@ -335,6 +335,8 @@ int main(int argc, char *argv[]) {
 
             if(tempAddress < 0x200 || tempAddress > 0xEA0) {
                 perror("ERROR: Program ran out of memory bounds\n");
+                close_program(p1, randomData);
+                exit(1);
             }
 
             p1->addressRegister = tempAddress;
@@ -347,10 +349,11 @@ int main(int argc, char *argv[]) {
             tempAddress = tempAddress | p1->memory[p1->programCounter + 1]; 
 
             tempAddress += p1->registers[0];
-            //DEBUG
-            printf("TEMP ADD = %X]\n", tempAddress);
+
             if(tempAddress < 0x200 || tempAddress > 0xEA0) {
                 perror("ERROR: Program ran out of memory bounds\n");
+                close_program(p1, randomData);
+                exit(1);
             }
 
             p1->programCounter = tempAddress;
@@ -366,13 +369,88 @@ int main(int argc, char *argv[]) {
         else if ((p1->memory[p1->programCounter] >> 4) == 0xe) {
             //get key press
             
+
+            
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xf) {
             if(p1->memory[p1->programCounter + 1] == 0x07) {
                 p1->registers[p1->memory[p1->programCounter] & 0xf] = p1->delayTimer;
             }
             else if(p1->memory[p1->programCounter + 1] == 0x0a) {
+                int valid_character = 0, ch = 0;
                 
+                while(valid_character = 0) {
+                    ch = getch();   //Get keybaord input
+
+                    switch(ch) {
+                        case '0':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter]] = 0x0;
+                            break;
+                        case '1':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x1;
+                            break;
+                        case '2':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x2;
+                            break;
+                        case '3':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x3;
+                            break;
+                        case '4':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x4;
+                            break;
+                        case '5':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x5;
+                            break;
+                        case '6':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x6;
+                            break;
+                        case '7':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x7;
+                            break;
+                        case '8':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x8;
+                            break;
+                        case '9':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x9;
+                            break;
+                        case 'a':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xa;
+                            break;
+                        case 'b':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xb;
+                            break;
+                        case 'c':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xc;
+                            break;
+                        case 'd':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xd;
+                            break;
+                        case 'e':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xe;
+                            break;
+                        case 'f':
+                            valid_character = 1;
+                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xf;
+                            break;
+                        default :
+                            break;
+                    }
+                }
             }
             else if(p1->memory[p1->programCounter + 1] == 0x15) {
                 //delay
@@ -426,8 +504,8 @@ int main(int argc, char *argv[]) {
             }
             else if(p1->memory[p1->programCounter + 1] == 0xff) {
                 //Special DEBUG command to exit process because there no exist command in chip8 atm
-                view_program_memory(p1);
-                close(randomData);
+              
+                close_program(p1, randomData);
                 exit(1);
             }
             else {
@@ -436,6 +514,8 @@ int main(int argc, char *argv[]) {
         }
         else {
             perror("ERROR: Unintended behavio\n");
+            close_program(p1, randomData);
+            exit(1);
         }
 
         // Increment programer
@@ -454,6 +534,65 @@ int main(int argc, char *argv[]) {
         
     }
 
-    close(randomData);
+    close_program(p1, randomData);
     return 1;
+}
+
+chip8processor* init_chip8(void) {
+    chip8processor* p1 = (chip8processor*)malloc(sizeof(chip8processor));
+    memset(p1->memory,0,sizeof(uint8_t)* CHIP8_MEMORY_LIMIT);
+    memset(p1->registers,0,sizeof(uint8_t)*16);
+    // memset(p1->stack,0,sizeof(uint16_t)*CHIP8_STACK_SIZE);
+    p1->stackSize = 0x0;
+    p1->delayTimer = 0x0;
+    p1->delayFlag = 0;
+    p1->soundTimer = 0x0;
+    p1->soundFlag = 0;
+    p1->userinput = 0x0;
+    p1->userinput_flag = 0;
+    p1->programCounter = 0x200;
+    p1->stackPointer = 0xea0;
+    p1->addressRegister = 0x0;
+    p1->time_spent_sound = 0.0;
+    p1->time_spent_delay = 0.0;
+    return p1;
+}
+
+void destory_chip(chip8processor* p1) {
+    free(p1);
+}
+
+void debug_chip8_state(chip8processor* p1) {
+    printf("\nDEBUG: PRCESSOR STATE\n");
+    printf("Reg: \n");
+    for(int cnt = 0; cnt < 16; cnt += 1) {
+        printf("REG %d = %x\n", cnt, p1->registers[cnt]);
+    }
+    printf("program counter: %x\n", p1->programCounter);
+    printf("Address Reg %x\n", p1->addressRegister);
+    printf("Current opcode %#0X%02X\n", p1->memory[p1->programCounter],p1->memory[p1->programCounter+1]);
+    printf("SoundTimer = %x\n",p1->soundTimer);
+    printf("DelayTimer = %x\n",p1->delayTimer);
+    printf("stack size = %d\n", p1->stackSize);
+    printf("stackpointer = %x\n", p1->stackPointer);
+    for(int cnt = 0xea0; cnt < (0xea0 + CHIP8_STACK_SIZE); cnt+=2) {
+        printf("Stack %X = %#02X %02X\n", cnt,p1->memory[cnt], p1->memory[cnt +1]);
+    }
+    printf("\n");
+}
+
+void view_program_memory(chip8processor* p1) {
+      //Debug
+    for(unsigned int i = 0x200; (p1->memory[i] != 0) || (p1->memory[i+1] != 0); i += 2) {
+        printf("DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1->memory[i],p1->memory[i+1]);
+    }
+}
+
+void close_program(chip8processor* p1 , int randomData) {
+    #if DEBUG
+        view_program_memory(p1);
+    #endif
+    close(randomData);
+    destory_chip(p1);
+    endwin();
 }
