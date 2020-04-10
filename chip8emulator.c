@@ -14,8 +14,6 @@
 #define OPCODE_SIZE_INBYTES 2
 #define CHIP8_MEMORY_LIMIT 4096
 #define CHIP8_STACK_SIZE 12
-#define DEBUG
-
 
 typedef struct chip8processor { 
     uint8_t memory[CHIP8_MEMORY_LIMIT]; 

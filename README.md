@@ -25,3 +25,5 @@ make clean				//remove output files
 
 ./chip8disassembler	<rom file>	//disassembles target rom
 ./chip8emulator	<rom file>		//Emulates target rom
+
+*When debug is used, log of chip8 state will go to debug.log

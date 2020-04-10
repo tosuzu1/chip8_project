@@ -1,13 +1,16 @@
-all	: emulator disassembler ncurse
+all	: emulator disassembler 
 
 emulator : 
-	gcc -o chip8emulator.out chip8emulator.c -lncurses
+	gcc -Wall -o chip8emulator.out chip8emulator.c -lncurses 
+
+emulatorDEBUG :
+	gcc -Wall  -o chip8emulator.out chip8emulator.c -lncurses -D DEBUG
 
 disassembler : 
-	gcc -o chip8disassembler.out chip8disassembler.c
+	gcc -Wall  -o chip8disassembler.out chip8disassembler.c
 
 ncurse:
-	gcc -o ./notes/test_ncurse.out ./notes/test_ncurse.c -lncurses
+	gcc -Wall  -o ./notes/test_ncurse.out ./notes/test_ncurse.c -lncurses
 
 clean	: 
-	rm chip8disassembler.out chip8emulator.out
+	rm *.out *.log
