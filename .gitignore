@@ -1,4 +1,3 @@
 # Ignore output files
-chip8disassembler
-a.out
+*.out
 .vscode/c_cpp_properties.json
