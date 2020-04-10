@@ -23,22 +23,22 @@ typedef struct chip8processor {
     // uint16_t stack[CHIP8_STACK_SIZE];        //Stack is now inside of memory
     uint16_t stackSize;
     uint8_t delayTimer;
-    uint8_t delayFlag;
+    uint8_t delayFlag;                          //If 1, active delay 
     uint8_t soundTimer;
-    uint8_t soundFlag;
-    unsigned char userinput;
-    uint8_t userinput_flag;
+    uint8_t soundFlag;                          //If 1, active sound 
+    unsigned char userinput;                    //saves the last user input
+    uint8_t userinput_flag;                     //if 0, no key have ever been pressed
     uint16_t programCounter;
     uint16_t stackPointer;
     uint16_t addressRegister;
-    double time_spent_sound;
+    double time_spent_sound;                    
     double time_spent_delay;
 } chip8processor;   
 
 chip8processor* init_chip8(void);
 void destory_chip(chip8processor* pi);
-void debug_chip8_state(chip8processor* p1) ;
-void view_program_memory(chip8processor* p1) ;
+void debug_chip8_state(chip8processor* p1, FILE* debug_File) ;
+void view_program_memory(chip8processor* p1, FILE* debug_File) ;
 void close_program(chip8processor* pi , int randomData);
 
 
@@ -54,11 +54,10 @@ int main(int argc, char *argv[]) {
     long int fileSize;
     unsigned char * buffer = (char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     size_t result;
-    uint32_t* randbits;
-    //srand(time(0));     // Used for random number generator but is vunable to timing attacks
-    // TODO use /dev/random         this makes it non portal to non-unix OS so look into it
-    clock_t time_begin = 0, time_end = 0;
+    uint32_t* randbits;                                                         //Stores Ranbit from /dev/urandom
+    clock_t time_begin = 0, time_end = 0;                                       //Used to generate time delay
 
+    //Open file from arg
     programFile = fopen(argv[1], "r");
 
     //Check to see if the file can be opened
@@ -82,11 +81,15 @@ int main(int argc, char *argv[]) {
     chip8processor* p1 = init_chip8();
 
     //start ncurses
-	initscr();			// Start curses mode 		
-	cbreak();			// Line buffering disabled
+	initscr();			        // Start curses mode 		
+	cbreak();			        // Line buffering disabled
 	keypad(stdscr, TRUE);		// Capture special key such f1 etc. 
-    noecho();           //Supress echo
+    noecho();                   //Supress echo
     refresh();
+
+    #ifdef DEBUG
+        FILE* debug_File = fopen("./debug.log","w");
+    #endif
 
     //Load rom into ram
     while(!feof(programFile)) {
@@ -127,7 +130,7 @@ int main(int argc, char *argv[]) {
     }   
 
     #ifdef DEBUG
-        view_program_memory(p1);
+        view_program_memory(p1, debug_File);
     #endif
 
     WINDOW * win = newwin(DISPLAY_RESOLUTION_VERTICAL + 2, DISPLAY_RESOLUTION_HORIZONTAL + 2, 0, 0);
@@ -137,7 +140,7 @@ int main(int argc, char *argv[]) {
 
     while(0 == 0) {
         #ifdef DEBUG
-            debug_chip8_state(p1);
+            debug_chip8_state(p1, debug_File);
         #endif
 
         if(p1->delayFlag != 0) {
@@ -158,6 +161,8 @@ int main(int argc, char *argv[]) {
             (p1->memory[p1->programCounter + 1] ) == 0xe0) {
                 //call clear screen
                 werase(win);
+                box(win, 0 , 0);
+                wmove(win, 1, 1);
                 wrefresh(win);
             }
             else if ((p1->memory[p1->programCounter] & 0xf) == 0 && 
@@ -365,11 +370,22 @@ int main(int argc, char *argv[]) {
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xd) {
             //Draw
+            wmove(win, 1, 1);
+            waddstr(win, "THIS IS S TEXT");
+            wrefresh(win);
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xe) {
-            //get key press
-            
-
+            if(p1->memory[p1->programCounter + 1] == 0x9e) {
+                // Skip if Vx == key()
+                if(p1->registers[p1->memory[p1->programCounter] & 0xf] == p1->userinput && p1->userinput_flag != 0) {
+                    p1->programCounter += 2;
+                }
+            }
+            else if(p1->memory[p1->programCounter + 1] == 0xa1){
+                if(p1->registers[p1->memory[p1->programCounter] & 0xf] != p1->userinput && p1->userinput_flag != 0) {
+                    p1->programCounter += 2;
+                }
+            }
             
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xf) {
@@ -385,72 +401,74 @@ int main(int argc, char *argv[]) {
                     switch(ch) {
                         case '0':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter]] = 0x0;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf] = 0x0;
                             break;
                         case '1':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x1;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x1;
                             break;
                         case '2':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x2;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x2;
                             break;
                         case '3':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x3;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x3;
                             break;
                         case '4':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x4;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x4;
                             break;
                         case '5':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x5;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x5;
                             break;
                         case '6':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x6;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x6;
                             break;
                         case '7':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x7;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x7;
                             break;
                         case '8':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x8;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x8;
                             break;
                         case '9':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0x9;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x9;
                             break;
                         case 'a':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xa;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xa;
                             break;
                         case 'b':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xb;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xb;
                             break;
                         case 'c':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xc;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xc;
                             break;
                         case 'd':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xd;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xd;
                             break;
                         case 'e':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xe;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xe;
                             break;
                         case 'f':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter & 0xf]]  = 0xf;
+                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xf;
                             break;
                         default :
                             break;
                     }
                 }
+                p1->userinput = p1->registers[p1->memory[p1->programCounter] & 0xf];
+                p1->userinput_flag = 1;
             }
             else if(p1->memory[p1->programCounter + 1] == 0x15) {
                 //delay
@@ -482,6 +500,7 @@ int main(int argc, char *argv[]) {
             }
             else if(p1->memory[p1->programCounter + 1] == 0x29) {
                 //Sprites
+                
             }
             else if(p1->memory[p1->programCounter + 1] == 0x33) {
                 // BCD
@@ -504,7 +523,7 @@ int main(int argc, char *argv[]) {
             }
             else if(p1->memory[p1->programCounter + 1] == 0xff) {
                 //Special DEBUG command to exit process because there no exist command in chip8 atm
-              
+
                 close_program(p1, randomData);
                 exit(1);
             }
@@ -562,36 +581,57 @@ void destory_chip(chip8processor* p1) {
     free(p1);
 }
 
-void debug_chip8_state(chip8processor* p1) {
-    printf("\nDEBUG: PRCESSOR STATE\n");
-    printf("Reg: \n");
+void debug_chip8_state(chip8processor* p1, FILE* debug_File) {
+    char str[50];
+    int n;
+    memset(str,'\0',sizeof(str));
+
+    n = sprintf(str,"\nDEBUG: PRCESSOR STATE\n");
+    fwrite(str,1,n,debug_File);
+    n = sprintf(str,"Reg: \n");
+    fwrite(str,1,n,debug_File);
     for(int cnt = 0; cnt < 16; cnt += 1) {
-        printf("REG %d = %x\n", cnt, p1->registers[cnt]);
+       n = sprintf(str,"REG %d = %x\n", cnt, p1->registers[cnt]);
+       fwrite(str,1,n,debug_File);
     }
-    printf("program counter: %x\n", p1->programCounter);
-    printf("Address Reg %x\n", p1->addressRegister);
-    printf("Current opcode %#0X%02X\n", p1->memory[p1->programCounter],p1->memory[p1->programCounter+1]);
-    printf("SoundTimer = %x\n",p1->soundTimer);
-    printf("DelayTimer = %x\n",p1->delayTimer);
-    printf("stack size = %d\n", p1->stackSize);
-    printf("stackpointer = %x\n", p1->stackPointer);
+    n = sprintf(str,"program counter: %x\n", p1->programCounter);
+    fwrite(str,1,n,debug_File);
+    n = sprintf(str,"Address Reg %x\n", p1->addressRegister);
+    fwrite(str,1,n,debug_File);
+    n = sprintf(str,"Current opcode %#0X%02X\n", p1->memory[p1->programCounter],p1->memory[p1->programCounter+1]);
+    fwrite(str,1,n,debug_File);
+    n = sprintf(str,"SoundTimer = %x\n",p1->soundTimer);
+    fwrite(str,1,n,debug_File);
+    n = sprintf(str,"DelayTimer = %x\n",p1->delayTimer);
+    fwrite(str,1,n,debug_File);
+    n = sprintf(str,"stack size = %d\n", p1->stackSize);
+    fwrite(str,1,n,debug_File);
+    n = sprintf(str,"stackpointer = %x\n", p1->stackPointer);
+    fwrite(str,1,n,debug_File);
     for(int cnt = 0xea0; cnt < (0xea0 + CHIP8_STACK_SIZE); cnt+=2) {
-        printf("Stack %X = %#02X %02X\n", cnt,p1->memory[cnt], p1->memory[cnt +1]);
+       n = sprintf(str,"Stack %X = %#02X %02X\n", cnt,p1->memory[cnt], p1->memory[cnt +1]);
+       fwrite(str,1,n,debug_File);
     }
-    printf("\n");
+    n = sprintf(str,"user input = %x\n", p1->userinput);
+    fwrite(str,1,n,debug_File);
+    n = sprintf(str,"user flag = %d\n", p1->userinput_flag);
+    fwrite(str,1,n,debug_File);
+    n = sprintf(str,"\n");
+    fwrite(str,1,n,debug_File);
 }
 
-void view_program_memory(chip8processor* p1) {
-      //Debug
+void view_program_memory(chip8processor* p1, FILE* debug_File) {
+    char str[50];
+    int n;
+    memset(str,'\0',sizeof(str));
     for(unsigned int i = 0x200; (p1->memory[i] != 0) || (p1->memory[i+1] != 0); i += 2) {
-        printf("DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1->memory[i],p1->memory[i+1]);
+        n = sprintf(str, "DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1->memory[i],p1->memory[i+1]);
+        fwrite(str,1,n,debug_File);
+        memset(str,'\0',sizeof(str));
     }
 }
 
 void close_program(chip8processor* p1 , int randomData) {
-    #ifdef DEBUG
-        view_program_memory(p1);
-    #endif
     close(randomData);
     destory_chip(p1);
     endwin();
