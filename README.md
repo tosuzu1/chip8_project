@@ -15,8 +15,10 @@ The emulator shall be able to accept user input via keyboard and produce a graph
 
 Useage.
 
-TODO
-	Makefile
+make all  				//Builds both emulator and disassembler
+make emulator			//builds emulator only
+make disassembler		//builds disassembler only
+make clean				//remove output files
 
-gcc -o chip8disassemble chip8disassemble.c
-gcc -o chip8emulator chip8emulator.c
+./chip8disassembler	<rom file>	//disassembles target rom
+./chip8emulator	<rom file>		//Emulates target rom
