@@ -14,6 +14,7 @@
 #define OPCODE_SIZE_INBYTES 2
 #define CHIP8_MEMORY_LIMIT 4096
 #define CHIP8_STACK_SIZE 12
+#define DEBUG
 
 
 typedef struct chip8processor { 
@@ -81,7 +82,6 @@ int main(int argc, char *argv[]) {
     chip8processor* p1 = init_chip8();
 
     //start ncurses
-    int ch;
 	initscr();			// Start curses mode 		
 	cbreak();			// Line buffering disabled
 	keypad(stdscr, TRUE);		// Capture special key such f1 etc. 
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }   
 
-    #if DEBUG
+    #ifdef DEBUG
         view_program_memory(p1);
     #endif
 
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
     wmove(win, 1, 1);
 
     while(0 == 0) {
-        #if DEBUG
+        #ifdef DEBUG
             debug_chip8_state(p1);
         #endif
 
@@ -379,7 +379,7 @@ int main(int argc, char *argv[]) {
             else if(p1->memory[p1->programCounter + 1] == 0x0a) {
                 int valid_character = 0, ch = 0;
                 
-                while(valid_character = 0) {
+                while(valid_character == 0) {
                     ch = getch();   //Get keybaord input
 
                     switch(ch) {
@@ -589,7 +589,7 @@ void view_program_memory(chip8processor* p1) {
 }
 
 void close_program(chip8processor* p1 , int randomData) {
-    #if DEBUG
+    #ifdef DEBUG
         view_program_memory(p1);
     #endif
     close(randomData);
