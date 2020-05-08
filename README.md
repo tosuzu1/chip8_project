@@ -15,10 +15,10 @@ The emulator shall be able to accept user input via keyboard and produce a graph
 
 # Useage.
 
-* make all <\t> //Builds both emulator and disassembler
-* make emulator	\t\t\t //builds emulator only
-* make disassembler \t\t\t //builds disassembler only
-* make clean \t\t\t //remove output files
+* make all &emsp&emsp //Builds both emulator and disassembler
+* make emulator	&emsp&emsp //builds emulator only
+* make disassembler &emsp&emsp //builds disassembler only
+* make clean &emsp&emsp //remove output files
 
-./chip8disassembler	<rom file> \t\t\t //disassembles target rom
-./chip8emulator		<rom file> \t\t\t //Emulates target rom
+./chip8disassembler	<rom file> &emsp&emsp //disassembles target rom
+./chip8emulator		<rom file> &emsp&emsp //Emulates target rom
