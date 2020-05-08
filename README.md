@@ -15,7 +15,7 @@ The emulator shall be able to accept user input via keyboard and produce a graph
 
 # Useage.
 
-* make all \t\t\t //Builds both emulator and disassembler
+* make all <\t> //Builds both emulator and disassembler
 * make emulator	\t\t\t //builds emulator only
 * make disassembler \t\t\t //builds disassembler only
 * make clean \t\t\t //remove output files
