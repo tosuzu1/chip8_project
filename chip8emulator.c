@@ -325,7 +325,7 @@ int main(int argc, char *argv[]) {
             }
             // Command Vx >>= 1
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x6) {
-                p1>registers[0xf] = p1->registers[p1->memory[p1->programCounter] & 0x0f] & 0x1;
+                p1->registers[0xf] = p1->registers[p1->memory[p1->programCounter] & 0x0f] & 0x1;
                 p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter] & 0x0f] >> 1;
             }
             // Command Vx = Vy - Vx
@@ -338,7 +338,7 @@ int main(int argc, char *argv[]) {
             }
             // Command Vx <<= 1
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0xe) {
-                p1>registers[0xf] = p1->registers[p1->memory[p1->programCounter] & 0x0f] & 0x80;
+                p1->registers[0xf] = p1->registers[p1->memory[p1->programCounter] & 0x0f] & 0x80;
                 p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter] & 0x0f] << 1;
             }
         }
@@ -389,9 +389,9 @@ int main(int argc, char *argv[]) {
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xd) {
             //Draw DXYN
-            uint8_t height = p1->memory[p1->programCounter + 1] & 0xf // Grab N from opcode
+            uint8_t height = p1->memory[p1->programCounter + 1] & 0xf; // Grab N from opcode
             uint16_t i_temp = p1->addressRegister;
-            uint16_t disp_add = 0xF00;
+            //uint16_t disp_add = 0xF00;
             uint8_t xPixel = p1->registers[p1->memory[p1->programCounter] & 0xf];
             uint8_t yPixel = p1->registers[p1->memory[p1->programCounter + 1] >> 4];
             uint8_t check_flip = 0;
@@ -404,18 +404,18 @@ int main(int argc, char *argv[]) {
             }
 
             for(uint8_t j = 0; j < 0; j++) {
-                check_flip = (p1->dispayGird[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
+                check_flip = (p1->displayGrid[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
                 if(check_flip > 0) {
                     p1->registers[0xf] = 1;
                 }   
-                p1->displayGird[yPixel] = p1->diplayGrid ^ (p1->memory[i_temp] << (56 - xPixel));
+                p1->displayGrid[yPixel] = p1->displayGrid[yPixel] ^ (p1->memory[i_temp] << (56 - xPixel));
             }
             /*
             wmove(win, 1, 1);
             waddstr(win, "THIS IS S TEXT");
             wrefresh(win);
             */
-            draw_display(chip8processor* p1, WINDOW * win);
+            draw_display( p1,  win);
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xe) {
             if(p1->memory[p1->programCounter + 1] == 0x9e) {
@@ -686,7 +686,8 @@ void draw_display(chip8processor* p1, WINDOW * win) {
     wmove(win, 1, 1);
     for(int i = 0; i < DISPLAY_RESOLUTION_VERTICAL; i++) {
         for(int j = 0;j < DISPLAY_RESOLUTION_HORIZONTAL; i++) {
-            if(((p1->displayGird[i] >> (63 - j) & 0x1) == 1){
+            if((p1->displayGrid[i] >> (63 - j) & 0x1) == 1)
+            {
                 waddch(win,'#');
             }
             else {
