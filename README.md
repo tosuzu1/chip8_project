@@ -15,7 +15,7 @@ The emulator shall be able to accept user input via keyboard and produce a graph
 
 # Useage.
 
-* make all &emsp&emsp //Builds both emulator and disassembler
+* make all &emsp;&emsp; //Builds both emulator and disassembler
 * make emulator	&emsp&emsp //builds emulator only
 * make disassembler &emsp&emsp //builds disassembler only
 * make clean &emsp&emsp //remove output files
