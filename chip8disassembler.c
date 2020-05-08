@@ -14,9 +14,9 @@ int main(int argc, char *argv[]) {
     //Variables used
     FILE *programFile;
     int fileSize = 0, programCounter = 0x200;
-    unsigned char * buffer = (char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
+    unsigned char * buffer = (unsigned char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     uint16_t opcode;
-    size_t result;
+    //size_t result;
 
     programFile = fopen(argv[1], "r");
 
@@ -45,7 +45,8 @@ int main(int argc, char *argv[]) {
         memset(buffer,0,OPCODE_SIZE_INBYTES);
 
         //Get the 2 byte opcode and put it into the buffer
-        result = fread(buffer,1,OPCODE_SIZE_INBYTES, programFile);
+        //result = fread(buffer,1,OPCODE_SIZE_INBYTES, programFile);
+        fread(buffer,1,OPCODE_SIZE_INBYTES, programFile);
 
         //if end of file, exit loop
         if(feof(programFile)) {

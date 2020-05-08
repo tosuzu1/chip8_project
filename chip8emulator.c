@@ -31,6 +31,7 @@ typedef struct chip8processor {
     uint16_t addressRegister;
     double time_spent_sound;                    
     double time_spent_delay;
+    uint64_t displayGrid[DISPLAY_RESOLUTION_VERTICAL];  //Hold display
 } chip8processor;   
 
 chip8processor* init_chip8(void);
@@ -38,6 +39,7 @@ void destory_chip(chip8processor* pi);
 void debug_chip8_state(chip8processor* p1, FILE* debug_File) ;
 void view_program_memory(chip8processor* p1, FILE* debug_File) ;
 void close_program(chip8processor* pi , int randomData);
+void draw_display(chip8processor* p1, WINDOW * win);
 
 
 int main(int argc, char *argv[]) {
@@ -50,9 +52,9 @@ int main(int argc, char *argv[]) {
     //Variables used
     FILE *programFile;
     long int fileSize;
-    unsigned char * buffer = (char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
-    size_t result;
-    uint32_t* randbits;                                                         //Stores Ranbit from /dev/urandom
+    unsigned char * buffer = (unsigned char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
+    //size_t result;
+    uint32_t* randbits = 0;                                                         //Stores Ranbit from /dev/urandom
     clock_t time_begin = 0, time_end = 0;                                       //Used to generate time delay
 
     //Open file from arg
@@ -95,7 +97,8 @@ int main(int argc, char *argv[]) {
         memset(buffer,0,OPCODE_SIZE_INBYTES);
 
         //Get the 2 byte opcode and put it into the buffer
-        result = fread(buffer,1,OPCODE_SIZE_INBYTES, programFile);
+        //result = fread(buffer,1,OPCODE_SIZE_INBYTES, programFile);
+        fread(buffer,1,OPCODE_SIZE_INBYTES, programFile);
 
         //if end of file, exit loop
         if(feof(programFile)) {
@@ -114,6 +117,9 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
+
+    //Free buffer after use
+    free(buffer);
 
     // Reset program counter to base and closes the file
     p1->programCounter = 0x200;
@@ -303,22 +309,36 @@ int main(int argc, char *argv[]) {
             }
             // Command Vx += Vy
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x4) {
+                uint32_t check_flag = p1->registers[p1->memory[p1->programCounter] & 0x0f] + p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
+                if (check_flag > 0xff) {
+                    p1->registers[0xf] = 1;
+                }
                 p1->registers[p1->memory[p1->programCounter] & 0x0f] += p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
             }
             // Command Vx -= Vy
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x5) {
+                int32_t check_flag = p1->registers[p1->memory[p1->programCounter] & 0x0f] - p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
+                if (check_flag < 0) {
+                     p1->registers[0xf] = 1;
+                }
                 p1->registers[p1->memory[p1->programCounter] & 0x0f] -= p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
             }
             // Command Vx >>= 1
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x6) {
+                p1>registers[0xf] = p1->registers[p1->memory[p1->programCounter] & 0x0f] & 0x1;
                 p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter] & 0x0f] >> 1;
             }
             // Command Vx = Vy - Vx
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x7) {
+                int32_t check_flag = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] - p1->registers[p1->memory[p1->programCounter] & 0x0f] ;
+                if (check_flag < 0) {
+                     p1->registers[0xf] = 1;
+                }
                 p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] - p1->registers[p1->memory[p1->programCounter] & 0x0f];
             }
             // Command Vx <<= 1
             else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0xe) {
+                p1>registers[0xf] = p1->registers[p1->memory[p1->programCounter] & 0x0f] & 0x80;
                 p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter] & 0x0f] << 1;
             }
         }
@@ -363,14 +383,39 @@ int main(int argc, char *argv[]) {
             continue;
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xc) {
-            ssize_t result = read(randomData, randbits, sizeof(randbits));
+            //ssize_t result = read(randomData, randbits, sizeof(randbits));
+            read(randomData, randbits, sizeof(randbits));
             p1->registers[p1->memory[p1->programCounter] & 0xf ] = *randbits & p1->memory[p1->programCounter + 1];
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xd) {
-            //Draw
+            //Draw DXYN
+            uint8_t height = p1->memory[p1->programCounter + 1] & 0xf // Grab N from opcode
+            uint16_t i_temp = p1->addressRegister;
+            uint16_t disp_add = 0xF00;
+            uint8_t xPixel = p1->registers[p1->memory[p1->programCounter] & 0xf];
+            uint8_t yPixel = p1->registers[p1->memory[p1->programCounter + 1] >> 4];
+            uint8_t check_flip = 0;
+
+            if(xPixel > DISPLAY_RESOLUTION_HORIZONTAL - 8 || yPixel + height > DISPLAY_RESOLUTION_VERTICAL) {
+                //Check draw boundry
+                perror("ERROR: Program Draw out of bound\n");
+                close_program(p1, randomData);
+                exit(1);
+            }
+
+            for(uint8_t j = 0; j < 0; j++) {
+                check_flip = (p1->dispayGird[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
+                if(check_flip > 0) {
+                    p1->registers[0xf] = 1;
+                }   
+                p1->displayGird[yPixel] = p1->diplayGrid ^ (p1->memory[i_temp] << (56 - xPixel));
+            }
+            /*
             wmove(win, 1, 1);
             waddstr(win, "THIS IS S TEXT");
             wrefresh(win);
+            */
+            draw_display(chip8processor* p1, WINDOW * win);
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xe) {
             if(p1->memory[p1->programCounter + 1] == 0x9e) {
@@ -484,9 +529,9 @@ int main(int argc, char *argv[]) {
                 p1->time_spent_sound = 0;
             }
             else if(p1->memory[p1->programCounter + 1] == 0x1e) {
+                // add to memory
+                uint32_t tempAddress = p1->addressRegister + p1->registers[p1->memory[p1->programCounter] & 0x0f];
                 p1->addressRegister += p1->registers[p1->memory[p1->programCounter] & 0x0f];
-
-                uint16_t tempAddress = p1->addressRegister + p1->registers[p1->memory[p1->programCounter] & 0x0f];
 
                 if(tempAddress > 0xFFF) {
                     p1->registers[15] = 1;
@@ -572,6 +617,7 @@ chip8processor* init_chip8(void) {
     p1->addressRegister = 0x0;
     p1->time_spent_sound = 0.0;
     p1->time_spent_delay = 0.0;
+    memset(p1->displayGrid, 0, sizeof(uint32_t)* DISPLAY_RESOLUTION_VERTICAL); //Zero out display
     return p1;
 }
 
@@ -633,4 +679,22 @@ void close_program(chip8processor* p1 , int randomData) {
     close(randomData);
     destory_chip(p1);
     endwin();
+}
+
+void draw_display(chip8processor* p1, WINDOW * win) {
+    box(win, 0 , 0);
+    wmove(win, 1, 1);
+    for(int i = 0; i < DISPLAY_RESOLUTION_VERTICAL; i++) {
+        for(int j = 0;j < DISPLAY_RESOLUTION_HORIZONTAL; i++) {
+            if(((p1->displayGird[i] >> (63 - j) & 0x1) == 1){
+                waddch(win,'#');
+            }
+            else {
+                waddch(win,' ');
+            }
+        }
+        wmove(win, i+2, 1);
+
+    }
+    wrefresh(win);
 }
