@@ -404,14 +404,20 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
 
+            char str[50];
+            int n;
+            memset(str,'\0',sizeof(str));
+
+            n = sprintf(str,"\nDEBUG: PRCESSOR STATE\n");
+            fwrite(str,1,n,debug_File);
+
             for(uint8_t j = 0; j < height; j++) {
                 check_flip = (p1->displayGrid[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
                 if(check_flip > 0) {
                     p1->registers[0xf] = 1;
                 }   
-                p1->displayGrid[yPixel + j] = p1->displayGrid[yPixel + j] ^ (p1->memory[i_temp + (2*j)] << (56 - xPixel));
+                p1->displayGrid[yPixel + j] = p1->displayGrid[yPixel + j] ^ ((uint64_t)p1->memory[i_temp + (2*j)] << (60 - xPixel));
             }
-            //p1->displayGrid[0]= 0xffef;
             draw_display( p1,  win);
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xe) {
@@ -793,7 +799,7 @@ void view_program_memory(chip8processor* p1, FILE* debug_File) {
     }
 
     for(unsigned int i = 0; i < DISPLAY_RESOLUTION_VERTICAL; i++) {
-         n = sprintf(str, "DEBUG: Display memory[%d] %064lX\n", i, p1->displayGrid[i]);
+         n = sprintf(str, "DEBUG: Display memory[%d] %0lX\n", i, p1->displayGrid[i]);
         fwrite(str,1,n,debug_File);
         memset(str,'\0',sizeof(str));
     }
