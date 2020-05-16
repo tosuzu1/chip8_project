@@ -404,18 +404,14 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
 
-            for(uint8_t j = 0; j < 0; j++) {
+            for(uint8_t j = 0; j < height; j++) {
                 check_flip = (p1->displayGrid[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
                 if(check_flip > 0) {
                     p1->registers[0xf] = 1;
                 }   
-                p1->displayGrid[yPixel] = p1->displayGrid[yPixel] ^ (p1->memory[i_temp] << (56 - xPixel));
+                p1->displayGrid[yPixel + j] = p1->displayGrid[yPixel + j] ^ (p1->memory[i_temp + (2*j)] << (56 - xPixel));
             }
-            /*
-            wmove(win, 1, 1);
-            waddstr(win, "THIS IS S TEXT");
-            wrefresh(win);
-            */
+            //p1->displayGrid[0]= 0xffef;
             draw_display( p1,  win);
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xe) {
@@ -530,7 +526,7 @@ int main(int argc, char *argv[]) {
                 p1->time_spent_sound = 0;
             }
             else if(p1->memory[p1->programCounter + 1] == 0x1e) {
-                // add to memory
+                // add to i register
                 uint32_t tempAddress = p1->addressRegister + p1->registers[p1->memory[p1->programCounter] & 0x0f];
                 p1->addressRegister += p1->registers[p1->memory[p1->programCounter] & 0x0f];
 
@@ -543,7 +539,13 @@ int main(int argc, char *argv[]) {
             
             }
             else if(p1->memory[p1->programCounter + 1] == 0x29) {
-                //Sprites
+                // load sprite to Iregister
+                //Register are 8 bit, we only want the last 4bit (hex) to represent the number being loaded
+                uint16_t sprite_Location = (p1->registers[p1->memory[p1->programCounter]  & 0xf] & 0xf) * 10;
+
+                for(uint8_t i = 0; i < 10; i++) {
+                    p1->memory[p1->addressRegister + i] = p1->memory[sprite_Location + i];
+                }
                 
             }
             else if(p1->memory[p1->programCounter + 1] == 0x33) {
@@ -567,7 +569,7 @@ int main(int argc, char *argv[]) {
             }
             else if(p1->memory[p1->programCounter + 1] == 0xff) {
                 //Special DEBUG command to exit process because there no exist command in chip8 atm
-
+                view_program_memory(p1, debug_File);
                 close_program(p1, randomData);
                 exit(1);
             }
@@ -602,10 +604,12 @@ int main(int argc, char *argv[]) {
 }
 
 chip8processor* init_chip8(void) {
+    // Create processor 
     chip8processor* p1 = (chip8processor*)malloc(sizeof(chip8processor));
+
+    //Zero out the processor to start from an empty state
     memset(p1->memory,0,sizeof(uint8_t)* CHIP8_MEMORY_LIMIT);
     memset(p1->registers,0,sizeof(uint8_t)*16);
-    // memset(p1->stack,0,sizeof(uint16_t)*CHIP8_STACK_SIZE);
     p1->stackSize = 0x0;
     p1->delayTimer = 0x0;
     p1->delayFlag = 0;
@@ -619,6 +623,119 @@ chip8processor* init_chip8(void) {
     p1->time_spent_sound = 0.0;
     p1->time_spent_delay = 0.0;
     memset(p1->displayGrid, 0, sizeof(uint32_t)* DISPLAY_RESOLUTION_VERTICAL); //Zero out display
+
+    // Load Font sprites into chip8
+    // Load 0x0 sprites
+    p1->memory[0x000] = 0xf;
+    p1->memory[0x002] = 0x9;
+    p1->memory[0x0004] = 0x9;
+    p1->memory[0x0006] = 0x9;
+    p1->memory[0x0008] = 0xF;
+
+    // Load 0x1 sprite
+    p1->memory[0x00a] = 0x2;
+    p1->memory[0x00c] = 0x6;
+    p1->memory[0x00e] = 0x2;
+    p1->memory[0x010] = 0x2;
+    p1->memory[0x012] = 0x7;
+
+    // Load 0x2 sprite
+    p1->memory[0x014] = 0xf;
+    p1->memory[0x016] = 0x1;
+    p1->memory[0x018] = 0xf;
+    p1->memory[0x01a] = 0x8;
+    p1->memory[0x01c] = 0xf;
+
+    // Load 0x3 sprite
+    p1->memory[0x01e] = 0xf;
+    p1->memory[0x020] = 0x1;
+    p1->memory[0x022] = 0xf;
+    p1->memory[0x024] = 0x1;
+    p1->memory[0x026] = 0xf;
+
+    // Load 0x4 sprite
+    p1->memory[0x028] = 0x9;
+    p1->memory[0x02a] = 0x9;
+    p1->memory[0x02c] = 0xf;
+    p1->memory[0x02e] = 0x1;
+    p1->memory[0x030] = 0x1;
+
+    // Load 5 sprite
+    p1->memory[0x032] = 0xf;
+    p1->memory[0x034] = 0x8;
+    p1->memory[0x036] = 0xf;
+    p1->memory[0x038] = 0x1;
+    p1->memory[0x03a] = 0xf;
+
+    // Load 0x6 sprite
+    p1->memory[0x03c] = 0xf;
+    p1->memory[0x03e] = 0x8;
+    p1->memory[0x040] = 0xf;
+    p1->memory[0x042] = 0x9;
+    p1->memory[0x044] = 0xf;
+
+    // Load 0x7 sprite
+    p1->memory[0x046] = 0xf;
+    p1->memory[0x048] = 0x1;
+    p1->memory[0x04a] = 0x2;
+    p1->memory[0x04c] = 0x4;
+    p1->memory[0x04e] = 0x4;
+
+    // Load 0x8 sprite
+    p1->memory[0x050] = 0xf;
+    p1->memory[0x052] = 0x9;
+    p1->memory[0x054] = 0xf;
+    p1->memory[0x056] = 0x9;
+    p1->memory[0x058] = 0xf;
+
+    // Load 0x9 sprite
+    p1->memory[0x05a] = 0xf;
+    p1->memory[0x05c] = 0x9;
+    p1->memory[0x05e] = 0xf;
+    p1->memory[0x060] = 0x1;
+    p1->memory[0x062] = 0xf;
+
+    // Load 0xA sprite
+    p1->memory[0x064] = 0xf;
+    p1->memory[0x066] = 0x9;
+    p1->memory[0x068] = 0xf;
+    p1->memory[0x06a] = 0x9;
+    p1->memory[0x06c] = 0x9;
+
+    // Load 0xB sprite
+    p1->memory[0x06e] = 0xe;
+    p1->memory[0x070] = 0x9;
+    p1->memory[0x072] = 0xe;
+    p1->memory[0x074] = 0x9;
+    p1->memory[0x076] = 0xe;
+
+    // Load 0xC sprite
+    p1->memory[0x0078] = 0xf;
+    p1->memory[0x007a] = 0x8;
+    p1->memory[0x007c] = 0x8;
+    p1->memory[0x007e] = 0x8;
+    p1->memory[0x0080] = 0xf;
+
+    // Load 0xD sprite
+    p1->memory[0x082] = 0xe;
+    p1->memory[0x084] = 0x9;
+    p1->memory[0x086] = 0x9;
+    p1->memory[0x088] = 0x9;
+    p1->memory[0x08a] = 0xe;
+
+    // Load 0xE sprite
+    p1->memory[0x08c] = 0xf;
+    p1->memory[0x08e] = 0x8;
+    p1->memory[0x090] = 0xf;
+    p1->memory[0x092] = 0x8;
+    p1->memory[0x094] = 0xf;
+
+    // Load 0xF sprite
+    p1->memory[0x096] = 0xf;
+    p1->memory[0x098] = 0x8;
+    p1->memory[0x09a] = 0xf;
+    p1->memory[0x09c] = 0x8;
+    p1->memory[0x09e] = 0x8;
     return p1;
 }
 
@@ -666,11 +783,17 @@ void debug_chip8_state(chip8processor* p1, FILE* debug_File) {
 }
 
 void view_program_memory(chip8processor* p1, FILE* debug_File) {
-    char str[50];
+    char str[100];
     int n;
     memset(str,'\0',sizeof(str));
     for(unsigned int i = 0x200; (p1->memory[i] != 0) || (p1->memory[i+1] != 0); i += 2) {
         n = sprintf(str, "DEBUG: opcode at memory[%#5X]\t%#5X %02X\n", i, p1->memory[i],p1->memory[i+1]);
+        fwrite(str,1,n,debug_File);
+        memset(str,'\0',sizeof(str));
+    }
+
+    for(unsigned int i = 0; i < DISPLAY_RESOLUTION_VERTICAL; i++) {
+         n = sprintf(str, "DEBUG: Display memory[%d] %064lX\n", i, p1->displayGrid[i]);
         fwrite(str,1,n,debug_File);
         memset(str,'\0',sizeof(str));
     }
