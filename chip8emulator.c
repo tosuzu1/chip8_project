@@ -397,12 +397,12 @@ int main(int argc, char *argv[]) {
             uint8_t yPixel = p1->registers[p1->memory[p1->programCounter + 1] >> 4];
             uint8_t check_flip = 0;
 
-            if(xPixel > DISPLAY_RESOLUTION_HORIZONTAL - 8 || yPixel + height > DISPLAY_RESOLUTION_VERTICAL) {
+            /*if(xPixel > DISPLAY_RESOLUTION_HORIZONTAL - 8 || yPixel + height > DISPLAY_RESOLUTION_VERTICAL) {
                 //Check draw boundry
                 perror("ERROR: Program Draw out of bound\n");
                 close_program(p1, randomData);
                 exit(1);
-            }
+            }*/
 
             char str[50];
             int n;
