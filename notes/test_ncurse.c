@@ -11,7 +11,7 @@ int main()
     //Init ncurses
     int ch;
     char str[64];
-    uint64_t draw_this = 0xff3a;
+    uint64_t draw_this = 0xffffffffffffffff;
     int n;
     initscr();			// Start curses mode 		
     refresh();
@@ -26,9 +26,17 @@ int main()
  
     waddch(win,'3');
     wmove(win, 2, 1);
-    waddch(win,'#');
-    n = sprintf(str,"%064B",draw_this);
-    waddstr(win, str);
+    //waddch(win,'#');
+    for(int j = 0;j < DISPLAY_RESOLUTION_HORIZONTAL; j++) {
+            if((draw_this >> (64 - j) & 0x1) == 1)
+            {
+                waddch(win,'#');
+            }
+            else {
+                waddch(win,' ');
+            }
+        }
+    //waddstr(win, str);
     wrefresh(win);
     getch();
     

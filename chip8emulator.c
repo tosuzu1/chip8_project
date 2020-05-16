@@ -164,6 +164,7 @@ int main(int argc, char *argv[]) {
             if((p1->memory[p1->programCounter] & 0xf) == 0x0 && 
             (p1->memory[p1->programCounter + 1] ) == 0xe0) {
                 //call clear screen
+                memset(p1->displayGrid, 0, sizeof(uint32_t)* DISPLAY_RESOLUTION_VERTICAL); //Zero out display
                 werase(win);
                 box(win, 0 , 0);
                 wmove(win, 1, 1);
@@ -685,7 +686,7 @@ void draw_display(chip8processor* p1, WINDOW * win) {
     box(win, 0 , 0);
     wmove(win, 1, 1);
     for(int i = 0; i < DISPLAY_RESOLUTION_VERTICAL; i++) {
-        for(int j = 0;j < DISPLAY_RESOLUTION_HORIZONTAL; i++) {
+        for(int j = 0;j < DISPLAY_RESOLUTION_HORIZONTAL; j++) {
             if((p1->displayGrid[i] >> (63 - j) & 0x1) == 1)
             {
                 waddch(win,'#');
