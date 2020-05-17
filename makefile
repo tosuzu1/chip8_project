@@ -4,7 +4,7 @@ emulator :
 	gcc -Wall -o chip8emulator.out chip8emulator.c -lncurses 
 
 emulatorDEBUG :
-	gcc -Wall  -o chip8emulator.out chip8emulator.c -lncurses -D DEBUG
+	gcc -Wall  -o chip8emulator.out chip8emulator.c -lncurses -D DEBUG -g
 
 disassembler : 
 	gcc -Wall  -o chip8disassembler.out chip8disassembler.c

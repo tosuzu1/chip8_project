@@ -21,12 +21,12 @@
 ANNN	X
 BNNN	X
 CXNN	X
-DXYN	Partial //VF flag most likely doens't work
+DXYN	x
 EX9E	X
 EXA1    X
 FX07	X
 FX0A    X
-FX15	partial // It doesn't seem to work in some cases
+FX15	X
 FX18	X
 FX1E	X
 FX29    X Loads sprites correctly

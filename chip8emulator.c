@@ -54,8 +54,9 @@ int main(int argc, char *argv[]) {
     long int fileSize;
     unsigned char * buffer = (unsigned char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     //size_t result;
-    uint32_t* randbits = 0;                                                         //Stores Ranbit from /dev/urandom
+    uint8_t* randbits = 0;                                                         //Stores Ranbit from /dev/urandom
     clock_t time_begin = 0, time_end = 0;                                       //Used to generate time delay
+    srand((unsigned int)time(NULL));
 
     //Open file from arg
     programFile = fopen(argv[1], "r");
@@ -149,7 +150,11 @@ int main(int argc, char *argv[]) {
 
         if(p1->delayFlag != 0) {
             //Delay program
-            if(p1->time_spent_delay >= (double)p1->delayTimer/60) {
+            if(p1->time_spent_delay*60 >= 1.0) {
+                p1->delayTimer -= 1;
+                p1->time_spent_delay = 0;
+            }
+            if(p1->delayTimer == 0) {
                 p1->delayFlag = 0;
                 p1->programCounter += 2;
             }
@@ -384,9 +389,11 @@ int main(int argc, char *argv[]) {
             continue;
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xc) {
-            //ssize_t result = read(randomData, randbits, sizeof(randbits));
+            /*ssize_t result = read(randomData, randbits, sizeof(randbits));
             read(randomData, randbits, sizeof(randbits));
-            p1->registers[p1->memory[p1->programCounter] & 0xf ] = *randbits & p1->memory[p1->programCounter + 1];
+            p1->registers[p1->memory[p1->programCounter] & 0xf ] = *randbits & p1->memory[p1->programCounter + 1]; 
+            */
+            p1->registers[p1->memory[p1->programCounter] & 0xf ] = (rand() %256) & p1->memory[p1->programCounter + 1];
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xd) {
             //Draw DXYN
@@ -397,19 +404,12 @@ int main(int argc, char *argv[]) {
             uint8_t yPixel = p1->registers[p1->memory[p1->programCounter + 1] >> 4];
             uint8_t check_flip = 0;
 
-            /*if(xPixel > DISPLAY_RESOLUTION_HORIZONTAL - 8 || yPixel + height > DISPLAY_RESOLUTION_VERTICAL) {
+            if(xPixel > DISPLAY_RESOLUTION_HORIZONTAL  || yPixel + height > DISPLAY_RESOLUTION_VERTICAL) {
                 //Check draw boundry
                 perror("ERROR: Program Draw out of bound\n");
                 close_program(p1, randomData);
                 exit(1);
-            }*/
-
-            char str[50];
-            int n;
-            memset(str,'\0',sizeof(str));
-
-            n = sprintf(str,"\nDEBUG: PRCESSOR STATE\n");
-            fwrite(str,1,n,debug_File);
+            }
 
             for(uint8_t j = 0; j < height; j++) {
                 check_flip = (p1->displayGrid[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
@@ -575,7 +575,6 @@ int main(int argc, char *argv[]) {
             }
             else if(p1->memory[p1->programCounter + 1] == 0xff) {
                 //Special DEBUG command to exit process because there no exist command in chip8 atm
-                view_program_memory(p1, debug_File);
                 close_program(p1, randomData);
                 exit(1);
             }
@@ -812,6 +811,7 @@ void close_program(chip8processor* p1 , int randomData) {
 }
 
 void draw_display(chip8processor* p1, WINDOW * win) {
+    werase(win);
     box(win, 0 , 0);
     wmove(win, 1, 1);
     for(int i = 0; i < DISPLAY_RESOLUTION_VERTICAL; i++) {
