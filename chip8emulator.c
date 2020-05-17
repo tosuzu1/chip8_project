@@ -592,8 +592,12 @@ int main(int argc, char *argv[]) {
         p1->programCounter += 2;
 
         if(p1->soundFlag != 0) {
-            //Sound will play
-            if(p1->time_spent_sound >= (double)p1->soundTimer/60) {
+            //Sound will play (double)p1->soundTimer/60
+            if(p1->time_spent_sound * 60 >= 1.0) {
+                p1->soundTimer -= 1;
+                p1->time_spent_sound = 0;
+            }
+            if(p1-soundTimer == 0) {
                 printf("\a");
                 p1->soundFlag = 0;
             }
