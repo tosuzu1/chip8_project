@@ -147,20 +147,39 @@ int main(int argc, char *argv[]) {
     wmove(win, 1, 1);
 
     // Main loop
-    while(0 == 0) {
+    while(0 == 0)
+    {
         #ifdef DEBUG
             // If debug, print out chip state to debug log
             debug_chip8_state(p1, debug_File);
         #endif
 
-        if(p1->delayFlag != 0) {
+        // Parse current opcode
+        uint8_t opcode_NN = p1->memory[p1->programCounter + 1];
+        uint8_t opcode_N = p1->memory[p1->programCounter + 1] & 0x0f;
+        uint8_t opcode_Vx = p1->memory[p1->programCounter] & 0xf;
+        uint8_t opcode_Vy = p1->memory[p1->programCounter + 1] >> 4;
+        uint8_t opcode_most_significant_bit = (p1->memory[p1->programCounter] & 0xf0) >> 4;
+        uint8_t opcode_least_significant_bit = p1->memory[p1->programCounter + 1] & 0x0f;
+        uint8_t opcode_upper_half = p1->memory[p1->programCounter];
+        uint8_t opcode_lower_half = p1->memory[p1->programCounter + 1];
+
+        uint16_t opcode_NNN = 0;
+        opcode_NNN = opcode_Vx;
+        opcode_NNN =  opcode_NNN << 8;
+        opcode_NNN =  opcode_NNN | p1->memory[p1->programCounter + 1];
+
+        if(p1->delayFlag != 0) 
+            {
             // Delay program if delay was called
-            if(p1->time_spent_delay*60 >= 1.0) {
+            if(p1->time_spent_delay*60 >= 1.0) 
+            {
                 // For each 1/60 of a second, reduce delaytimer by 1
                 p1->delayTimer -= 1;
                 p1->time_spent_delay = 0;
             }
-            if(p1->delayTimer == 0) {
+            if(p1->delayTimer == 0) 
+            {
                 // Once delay is done, stop loop and continue program
                 p1->delayFlag = 0;
                 p1->programCounter += 2;
@@ -171,230 +190,261 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        if ((p1->memory[p1->programCounter] >> 4) == 0x0){
-            //0x00 intructsions
-            if((p1->memory[p1->programCounter] & 0xf) == 0x0 && 
-            (p1->memory[p1->programCounter + 1] ) == 0xe0) {
-                //call clear screen
+        if (opcode_most_significant_bit == 0x0)
+        {
+            // 0x0XXX instructions
+            if(opcode_upper_half == 0x00 && 
+                opcode_lower_half == 0xe0) 
+            {
+                // call clear screen
                 memset(p1->displayGrid, 0, sizeof(uint32_t)* DISPLAY_RESOLUTION_VERTICAL); //Zero out display
                 werase(win);
                 box(win, 0 , 0);
                 wmove(win, 1, 1);
                 wrefresh(win);
             }
-            else if ((p1->memory[p1->programCounter] & 0xf) == 0 && 
-            (p1->memory[p1->programCounter + 1] == 0xee)) {
-                //Return from subroutine
+            else if (opcode_upper_half == 0x00 && 
+                opcode_lower_half == 0xee)
+            {
+                // Return from subroutine
                 if(p1->stackSize == 0) {
-                    //Nothing on stack to return from
+                    // Nothing on stack to return from
                     perror("ERROR: Stack underflowed into memory bounds\n");
                     close_program(p1, randomData);
                     exit(1);
                 }
                 p1->stackPointer -= 2;
+
+                // Grab the address on top of the stack
                 uint16_t tempAddress = 0;
                 tempAddress = p1->memory[p1->stackPointer] & 0x0f;
                 tempAddress = tempAddress << 8;
                 tempAddress = tempAddress | p1->memory[p1->stackPointer + 1];
+
+                // Decrease the stack size and return the address as the new program counter
                 p1->stackSize -= 1;
                 p1->programCounter = tempAddress;
                 continue;
             }
-            else {
+            else 
+            {
                 // call subroutine RCA, this can go into below 0x200 region
                 // Current doesn't work as there no documentation of this region
                 // Besides font stored here
             
-                //Store program counter into stack
+                // Check stack size and ensure there is enough room in stack
                 if(p1->stackSize > CHIP8_STACK_SIZE) {
                     perror("ERROR: Stack overflowed into memory bounds\n");
                     close_program(p1, randomData);
                     exit(1);
                 }
-                p1->memory[p1->stackPointer] = ((p1->programCounter + 2) & 0xf00) >> 8;    //grab the programcounter's first 4 bits
+
+                //Store program counter into stack
+                p1->memory[p1->stackPointer] = ((p1->programCounter + 2) & 0xf00) >> 8;    
                 p1->memory[p1->stackPointer + 1] = (p1->programCounter & 0xff);
                 p1->stackPointer += 2;
                 p1->stackSize += 1;
 
-                uint16_t tempAddress = 0;
-                tempAddress = p1->memory[p1->programCounter] & 0x0f;
-                tempAddress = tempAddress << 8;
-                tempAddress = tempAddress | p1->memory[p1->programCounter + 1]; 
-
-                if(tempAddress > 0xEA0) {
+                if(opcode_NNN > 0xEA0) {
                     perror("ERROR: Program ran out of memory bounds\n");
                     close_program(p1, randomData);
                     exit(1);
                 }
 
-                p1->programCounter = tempAddress;
-
+                p1->programCounter = opcode_NNN;
                 continue;
             }
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0x1) {
-            //jump command
+        else if (opcode_most_significant_bit == 0x1) 
+        {
+            // 0x1XXX opcode, JMP command 
 
-            //Get NNN from op code
-            uint16_t tempAddress = 0;
-            tempAddress = p1->memory[p1->programCounter] & 0x0f;
-            tempAddress = tempAddress << 8;
-            tempAddress = tempAddress | p1->memory[p1->programCounter + 1]; 
-
-            if(tempAddress < 0x200 || tempAddress > 0xEA0) {
+            if(opcode_NNN < 0x200 || opcode_NNN > 0xEA0) 
+            {
                 perror("ERROR: Program ran out of memory bounds\n");
                 close_program(p1, randomData);
                 exit(1);
             }
 
-            p1->programCounter = tempAddress;
+            p1->programCounter = opcode_NNN;
             continue;
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0x2) {
-            // call subroutine
+        else if (opcode_most_significant_bit == 0x2) 
+        {
+            // 0x2XXX opcode, call subroutine
             
-            //Store program counter into stack
-            if(p1->stackSize > CHIP8_STACK_SIZE) {
+            // Check if stack is full
+            if(p1->stackSize > CHIP8_STACK_SIZE)
+            {
                 perror("ERROR: Stack overflowed into memory bounds\n");
                 close_program(p1, randomData);
                 exit(1);
             }
+
             //Grab the current program counter, advance it by 1 step and store it in the stack.
             p1->memory[p1->stackPointer] = ((p1->programCounter + 2) & 0xf00) >> 8;    
             p1->memory[p1->stackPointer + 1] = ((p1->programCounter + 2) & 0xff);
             p1->stackPointer += 2;
             p1->stackSize += 1;
 
-            // Grab subrooutine address and store it.
-            uint16_t tempAddress = 0;
-            tempAddress = p1->memory[p1->programCounter] & 0x0f;
-            tempAddress = tempAddress << 8;
-            tempAddress = tempAddress | p1->memory[p1->programCounter + 1]; 
-
-            if(tempAddress < 0x200 || tempAddress > 0xEA0) {
+            if(opcode_NNN < 0x200 || opcode_NNN > 0xEA0) 
+            {
                 perror("ERROR: Program ran out of memory bounds\n");
                 close_program(p1, randomData);
                 exit(1);
             }
 
-            p1->programCounter = tempAddress;
-
+            p1->programCounter = opcode_NNN;
             continue;
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0x3) {
-            // Skip if Vx == NN
-            if(p1->registers[p1->memory[p1->programCounter] & 0xf] == p1->memory[p1->programCounter + 1]) {
+        else if (opcode_most_significant_bit == 0x3) 
+        {
+            // 0x3NNN, Skip if Vx == NN
+            if(p1->registers[opcode_Vx] == opcode_NN) 
+            {
                 p1->programCounter += 2;
             }
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0x4) {
+        else if (opcode_most_significant_bit == 0x4) 
+        {
             // Skip if Vx != NN
-            if(p1->registers[p1->memory[p1->programCounter] & 0xf] != p1->memory[p1->programCounter + 1]) {
+            if(p1->registers[opcode_Vx] != opcode_NN) {
                 p1->programCounter += 2;
             }
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0x5) {
+        else if (opcode_most_significant_bit == 0x5) {
             // Skip if Vx == Vy
-            if(p1->registers[p1->memory[p1->programCounter] & 0xf] == p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] &&
-            (p1->memory[p1->programCounter + 1] & 0x0f) == 0) {
+            if(p1->registers[opcode_Vx] == p1->registers[opcode_Vy] 
+                && (p1->memory[p1->programCounter + 1] & 0x0f) == 0) 
+            {
                 p1->programCounter += 2;
             }
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0x6) {
-           //  Vx = NN
-            p1->registers[p1->memory[p1->programCounter] & 0xf] = p1->memory[p1->programCounter + 1];
+        else if (opcode_most_significant_bit == 0x6) 
+        {
+            //  Vx = NN
+            p1->registers[opcode_Vx] = opcode_NN;
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0x7) {
+        else if (opcode_most_significant_bit == 0x7) 
+        {
             // Vx += NN
-            p1->registers[p1->memory[p1->programCounter] & 0xf] += p1->memory[p1->programCounter + 1];
+            p1->registers[opcode_Vx] += opcode_NN;
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0x8) {
-            // Commmand Vx = Vy
-            if((p1->memory[p1->programCounter + 1] & 0x0f) == 0x0) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
+        else if (opcode_most_significant_bit == 0x8) 
+        {
+            // 0x8XXX commands subsection
+            if(opcode_least_significant_bit == 0x0) 
+            {
+                // Vx = Vy
+                p1->registers[opcode_Vx] = p1->registers[opcode_Vy];
             }
-            // Command Vx = Vx | Vy
-            else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x1) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] | p1->registers[p1->memory[p1->programCounter] & 0x0f];
+            else if (opcode_least_significant_bit == 0x1) 
+            {
+                // Command Vx = Vx | Vy
+                p1->registers[opcode_Vx] = p1->registers[opcode_Vx] | p1->registers[opcode_Vy];
             }
-            // Commmand 	Vx=Vx&Vy
-            else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x2) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] & p1->registers[p1->memory[p1->programCounter] & 0x0f];
+            else if (opcode_least_significant_bit == 0x2) 
+            {
+                // Commmand 	Vx=Vx & Vy
+                p1->registers[opcode_Vx] = p1->registers[opcode_Vx] & p1->registers[opcode_Vy];
             }
-            // Commmand 	Vx=Vx^Vy
-            else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x3) {
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] ^ p1->registers[p1->memory[p1->programCounter] & 0x0f];
+            else if (opcode_least_significant_bit == 0x3) 
+            {
+                // Commmand 	Vx=Vx^Vy
+                p1->registers[opcode_Vx] = p1->registers[opcode_Vx] ^ p1->registers[opcode_Vy];
             }
-            // Command Vx += Vy
-            else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x4) {
-                uint32_t check_flag = p1->registers[p1->memory[p1->programCounter] & 0x0f] + p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
+            else if (opcode_least_significant_bit == 0x4) {
+                // Command Vx += Vy
+                // Check if there will be a carry over
+                uint16_t check_flag = (uint16_t)p1->registers[opcode_Vx] + (uint16_t)p1->registers[opcode_Vy];
                 if (check_flag > 0xff) {
                     p1->registers[0xf] = 1;
                 }
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] += p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
-            }
-            // Command Vx -= Vy
-            else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x5) {
-                int32_t check_flag = p1->registers[p1->memory[p1->programCounter] & 0x0f] - p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
-                if (check_flag < 0) {
-                     p1->registers[0xf] = 1;
+                else 
+                {
+                    p1->registers[0xf] = 0;
                 }
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] -= p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4];
-            }
-            // Command Vx >>= 1
-            else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x6) {
-                p1->registers[0xf] = p1->registers[p1->memory[p1->programCounter] & 0x0f] & 0x1;
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter] & 0x0f] >> 1;
-            }
-            // Command Vx = Vy - Vx
-            else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0x7) {
-                int32_t check_flag = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] - p1->registers[p1->memory[p1->programCounter] & 0x0f] ;
-                if (check_flag < 0) {
-                     p1->registers[0xf] = 1;
-                }
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] - p1->registers[p1->memory[p1->programCounter] & 0x0f];
-            }
-            // Command Vx <<= 1
-            else if ((p1->memory[p1->programCounter + 1] & 0x0f) == 0xe) {
-                p1->registers[0xf] = p1->registers[p1->memory[p1->programCounter] & 0x0f] & 0x80;
-                p1->registers[p1->memory[p1->programCounter] & 0x0f] = p1->registers[p1->memory[p1->programCounter] & 0x0f] << 1;
-            }
-        }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0x9) {
-            // Skip if Vx != Vy
-            if(p1->registers[p1->memory[p1->programCounter] & 0xf] != p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] &&
-            (p1->memory[p1->programCounter + 1] & 0x0f) == 0) {
-                p1->programCounter += 2;
-            }
-        }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0xa) {
-            // I = NNNN
-            // Grab NNN from opcode
-            uint16_t tempAddress = 0;
-            tempAddress = p1->memory[p1->programCounter] & 0x0f;
-            tempAddress = tempAddress << 8;
-            tempAddress = tempAddress | p1->memory[p1->programCounter + 1]; 
 
-            if(tempAddress < 0x200 || tempAddress > 0xEA0) {
+                p1->registers[opcode_Vx] += p1->registers[opcode_Vy];
+            }
+            else if (opcode_least_significant_bit == 0x5) 
+            {
+                // Command Vx -= Vy
+                // Check to see if there will be a negative value
+                int16_t check_flag = (int16_t)p1->registers[opcode_Vx] - (int16_t)p1->registers[opcode_Vy];
+                if (check_flag < 0) {
+                     p1->registers[0xf] = 1;
+                }
+                else
+                {
+                    p1->registers[0xf] = 0;
+                }
+                p1->registers[opcode_Vx] -= p1->registers[opcode_Vy];
+            }
+            else if (opcode_least_significant_bit == 0x6) 
+            {
+                // Command Vx >>= 1
+                p1->registers[0xf] = p1->registers[opcode_Vx] & 0x1;
+                p1->registers[opcode_Vx] = p1->registers[opcode_Vx] >> 1;
+            }
+            else if (opcode_least_significant_bit == 0x7)
+            {
+                // Command Vx = Vy - Vx
+                // Checks to see if there will be a underflow
+                int16_t check_flag = (int16_t)p1->registers[opcode_Vy] - p1->registers[opcode_Vx] ;
+                if (check_flag < 0) {
+                     p1->registers[0xf] = 1;
+                }
+                else
+                {
+                    p1->registers[0xf] = 0;
+                }
+
+                p1->registers[opcode_Vx] = p1->registers[opcode_Vy] - p1->registers[opcode_Vx];
+            }
+            else if (opcode_least_significant_bit == 0xe) 
+            {
+                // Command Vx <<= 1
+                p1->registers[0xf] = (p1->registers[opcode_Vx] & 0x80) >> 7;
+                p1->registers[opcode_Vx] = p1->registers[opcode_Vx] << 1;
+            }
+        }
+        else if (opcode_most_significant_bit == 0x9) 
+        {
+            // 0x9XXX
+            if(opcode_least_significant_bit == 0x0) 
+            {
+                //Skip if Vx != Vy
+                if(p1->registers[opcode_Vx] != p1->registers[opcode_Vy])
+                {
+                    p1->programCounter += 2;
+                }
+            }
+        }
+        else if (opcode_most_significant_bit == 0xa) 
+        {
+            // I = NNNN
+            if(opcode_NNN < 0x200 || opcode_NNN > 0xEA0) 
+            {
                 perror("ERROR: Program ran out of memory bounds\n");
                 close_program(p1, randomData);
                 exit(1);
             }
             // Store NNN into address register
-            p1->addressRegister = tempAddress;
+            p1->addressRegister = opcode_NNN;
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0xb) {
+        else if (opcode_most_significant_bit == 0xb) 
+        {
             // PC = V0 + NNNN
-            // Grab NNNN from opcode
-            uint16_t tempAddress = 0;
-            tempAddress = p1->memory[p1->programCounter] & 0x0f;
-            tempAddress = tempAddress << 8;
-            tempAddress = tempAddress | p1->memory[p1->programCounter + 1]; 
+            // Stores temp_Address to jump to
+            uint16_t tempAddress = opcode_NNN;
+
             // Add V0 to NNNN
             tempAddress += p1->registers[0];
 
             //Check if Program counter is in restricted part of memory
-            if(tempAddress < 0x200 || tempAddress > 0xEA0) {
+            if(tempAddress < 0x200 || tempAddress > 0xEA0) 
+            {
                 perror("ERROR: Program ran out of memory bounds\n");
                 close_program(p1, randomData);
                 exit(1);
@@ -403,200 +453,215 @@ int main(int argc, char *argv[]) {
             p1->programCounter = tempAddress;
             continue;
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0xc) {
+        else if (opcode_most_significant_bit == 0xc) 
+        {
             // Vx = Random() & NN
-            // ssize_t result = read(randomData, randbits, sizeof(randbits));
             read(randomData, &randbits, sizeof(randbits));
-            p1->registers[p1->memory[p1->programCounter] & 0xf ] = randbits & p1->memory[p1->programCounter + 1]; 
-            
-            // p1->registers[p1->memory[p1->programCounter] & 0xf ] = (rand() %256) & p1->memory[p1->programCounter + 1];
+            p1->registers[opcode_Vx] = randbits & opcode_NN; 
+
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0xd) {
+        else if (opcode_most_significant_bit == 0xd) 
+        {
             //Draw DXYN
-            uint8_t height = p1->memory[p1->programCounter + 1] & 0xf; // Grab N from opcode
+            uint8_t height = opcode_N; // Grab N from opcode
             uint16_t i_temp = p1->addressRegister;
             //uint16_t disp_add = 0xF00;
-            uint8_t xPixel = p1->registers[p1->memory[p1->programCounter] & 0xf];
-            uint8_t yPixel = p1->registers[p1->memory[p1->programCounter + 1] >> 4];
+            uint8_t xPixel = p1->registers[opcode_Vx];
+            uint8_t yPixel = p1->registers[opcode_Vy];
             uint8_t check_flip = 0;
 
-            if(xPixel > DISPLAY_RESOLUTION_HORIZONTAL  || yPixel + height > DISPLAY_RESOLUTION_VERTICAL) {
+            if(xPixel > DISPLAY_RESOLUTION_HORIZONTAL  || yPixel + height > DISPLAY_RESOLUTION_VERTICAL) 
+            {
                 //Check draw boundry
                 perror("ERROR: Program Draw out of bound\n");
                 close_program(p1, randomData);
                 exit(1);
             }
 
-            for(uint8_t j = 0; j < height; j++) {
+            for(uint8_t j = 0; j < height; j++) 
+            {
                 check_flip = (p1->displayGrid[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
-                if(check_flip > 0) {
+                if(check_flip > 0) 
+                {
                     p1->registers[0xf] = 1;
                 }   
                 p1->displayGrid[yPixel + j] = p1->displayGrid[yPixel + j] ^ ((uint64_t)p1->memory[i_temp + (2*j)] << (60 - xPixel));
             }
             draw_display( p1,  win);
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0xe) {
-            if(p1->memory[p1->programCounter + 1] == 0x9e) {
+        else if (opcode_most_significant_bit == 0xe) 
+        {
+            if(opcode_lower_half == 0x9e) 
+            {
                 // Skip if Vx == key()
-                if(p1->registers[p1->memory[p1->programCounter] & 0xf] == p1->userinput && p1->userinput_flag != 0) {
+                if(p1->registers[opcode_Vx] == p1->userinput && p1->userinput_flag != 0) 
+                {
                     p1->programCounter += 2;
                 }
             }
-            else if(p1->memory[p1->programCounter + 1] == 0xa1){
+            else if(opcode_lower_half == 0xa1)
+            {
                 // Skip if Vx != Key()
-                if(p1->registers[p1->memory[p1->programCounter] & 0xf] != p1->userinput && p1->userinput_flag != 0) {
+                if(p1->registers[opcode_Vx] != p1->userinput && p1->userinput_flag != 0) 
+                {
                     p1->programCounter += 2;
                 }
             }
             
         }
-        else if ((p1->memory[p1->programCounter] >> 4) == 0xf) {
-            if(p1->memory[p1->programCounter + 1] == 0x07) {
+        else if (opcode_most_significant_bit == 0xf) 
+        {
+            if(opcode_lower_half == 0x07) 
+            {
                 // Vx = current delay value
-                p1->registers[p1->memory[p1->programCounter] & 0xf] = p1->delayTimer;
+                p1->registers[opcode_Vx] = p1->delayTimer;
             }
-            else if(p1->memory[p1->programCounter + 1] == 0x0a) {
+            else if(opcode_lower_half == 0x0a) 
+            {
                 // Get key press and store it in Vx, stop program until valid key is press
                 // Input is in hex
                 int valid_character = 0, ch = 0;
                 
-                while(valid_character == 0) {
+                while(valid_character == 0) 
+                {
                     ch = getch();   //Get keybaord input
 
-                    switch(ch) {
+                    switch(ch) 
+                    {
                         case '0':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf] = 0x0;
+                            p1->registers[opcode_Vx] = 0x0;
                             break;
                         case '1':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x1;
+                            p1->registers[opcode_Vx]  = 0x1;
                             break;
                         case '2':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x2;
+                            p1->registers[opcode_Vx]  = 0x2;
                             break;
                         case '3':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x3;
+                            p1->registers[opcode_Vx]  = 0x3;
                             break;
                         case '4':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x4;
+                            p1->registers[opcode_Vx]  = 0x4;
                             break;
                         case '5':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x5;
+                            p1->registers[opcode_Vx]  = 0x5;
                             break;
                         case '6':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x6;
+                            p1->registers[opcode_Vx]  = 0x6;
                             break;
                         case '7':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x7;
+                            p1->registers[opcode_Vx]  = 0x7;
                             break;
                         case '8':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x8;
+                            p1->registers[opcode_Vx]  = 0x8;
                             break;
                         case '9':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0x9;
+                            p1->registers[opcode_Vx]  = 0x9;
                             break;
                         case 'a':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xa;
+                            p1->registers[opcode_Vx]  = 0xa;
                             break;
                         case 'b':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xb;
+                            p1->registers[opcode_Vx]  = 0xb;
                             break;
                         case 'c':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xc;
+                            p1->registers[opcode_Vx]  = 0xc;
                             break;
                         case 'd':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xd;
+                            p1->registers[opcode_Vx]  = 0xd;
                             break;
                         case 'e':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xe;
+                            p1->registers[opcode_Vx]  = 0xe;
                             break;
                         case 'f':
                             valid_character = 1;
-                            p1->registers[p1->memory[p1->programCounter] & 0xf]  = 0xf;
+                            p1->registers[opcode_Vx]  = 0xf;
                             break;
                         default :
                             break;
                     }
                 }
-                p1->userinput = p1->registers[p1->memory[p1->programCounter] & 0xf];
+                p1->userinput = p1->registers[opcode_Vx];
                 p1->userinput_flag = 1;
             }
-            else if(p1->memory[p1->programCounter + 1] == 0x15) {
+            else if(opcode_lower_half == 0x15) 
+            {
                 // Set a delay based on the value of Vx
                 time_begin = clock();
                 p1->delayFlag = 1;
-                p1->delayTimer = p1->registers[p1->memory[p1->programCounter] & 0x0f];
+                p1->delayTimer = p1->registers[opcode_Vx];
                 p1->time_spent_delay = 0;
                 continue;
             }
-            else if(p1->memory[p1->programCounter + 1] == 0x18) {
+            else if(opcode_lower_half == 0x18) 
+            {
                 // Set a sound to be played after a set amount of time
                 // Value to be delay is Vx
                 time_begin = clock();
                 p1->soundFlag = 1;
-                p1->soundTimer = p1->registers[p1->memory[p1->programCounter] & 0x0f];
+                p1->soundTimer = p1->registers[opcode_Vx];
                 p1->time_spent_sound = 0;
             }
-            else if(p1->memory[p1->programCounter + 1] == 0x1e) {
+            else if(opcode_lower_half == 0x1e)
+            {
                 // I += Vx
 
-                uint32_t tempAddress = p1->addressRegister + p1->registers[p1->memory[p1->programCounter] & 0x0f];
-                p1->addressRegister += p1->registers[p1->memory[p1->programCounter] & 0x0f];
-
                 // If there is a overflow, then set VF = 1
+                uint32_t tempAddress = p1->addressRegister + p1->registers[opcode_Vx];
                 if(tempAddress > 0xFFF) {
                     p1->registers[15] = 1;
                 }
                 else {
                     p1->registers[15] = 0;
                 }
-            
+
+                p1->addressRegister += p1->registers[opcode_Vx];
             }
-            else if(p1->memory[p1->programCounter + 1] == 0x29) {
+            else if(opcode_lower_half == 0x29) {
                 // load sprite to Iregister
                 //Register are 8 bit, we only want the last 4bit (hex) to represent the number being loaded
-                uint16_t sprite_Location = (p1->registers[p1->memory[p1->programCounter]  & 0xf] & 0xf) * 10;
+                uint16_t sprite_Location = (p1->registers[opcode_Vx] & 0xf) * 10;
 
                 for(uint8_t i = 0; i < 10; i++) {
                     p1->memory[p1->addressRegister + i] = p1->memory[sprite_Location + i];
                 }
                 
             }
-            else if(p1->memory[p1->programCounter + 1] == 0x33) {
+            else if(opcode_lower_half == 0x33) {
                 // BCD
-                p1->memory[p1->addressRegister] = p1->registers[p1->memory[p1->programCounter] & 0x0f] / 100;
-                p1->memory[p1->addressRegister + 1] = (p1->registers[p1->memory[p1->programCounter] & 0x0f] % 100) / 10 ;
-                p1->memory[p1->addressRegister + 2] = (p1->registers[p1->memory[p1->programCounter] & 0x0f] % 10);
+                p1->memory[p1->addressRegister] = p1->registers[opcode_Vx] / 100;
+                p1->memory[p1->addressRegister + 1] = (p1->registers[opcode_Vx] % 100) / 10 ;
+                p1->memory[p1->addressRegister + 2] = (p1->registers[opcode_Vx] % 10);
             }
-            else if(p1->memory[p1->programCounter + 1] == 0x55) {
+            else if(opcode_lower_half== 0x55) {
                 // REGDUMP
-                for (uint8_t i = 0; i <= (p1->memory[p1->programCounter] & 0x0f); i += 1) {
+                for (uint8_t i = 0; i <= (opcode_Vx); i += 1) {
                     p1->memory[p1->addressRegister + i]  = p1->registers[i];
                     
                 }
             }
-            else if(p1->memory[p1->programCounter + 1] == 0x65) {
+            else if(opcode_lower_half == 0x65) {
                 // Regload
-                for (uint8_t i = 0; i <= (p1->memory[p1->programCounter] & 0x0f); i += 1) {
+                for (uint8_t i = 0; i <= (opcode_Vx); i += 1) {
                     p1->registers[i] = p1->memory[p1->addressRegister + i];
                 }
             }
-            else if(p1->memory[p1->programCounter + 1] == 0xff) {
+            else if(opcode_lower_half == 0xff) {
                 //Special DEBUG command to exit process because there no exist command in chip8 atm
                 close_program(p1, randomData);
                 exit(1);
