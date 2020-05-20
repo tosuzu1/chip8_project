@@ -15,3 +15,5 @@ mazeAlt works
 Pong doesn't work try to draw out of bounce
 
 SpaceInvader Doesn't work, the files doesn't match ch8 format (opcode don't fit)
+
+Random number works

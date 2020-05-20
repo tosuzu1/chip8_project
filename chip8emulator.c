@@ -54,9 +54,8 @@ int main(int argc, char *argv[]) {
     long int fileSize;
     unsigned char * buffer = (unsigned char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     //size_t result;
-    uint8_t* randbits = 0;                                                         //Stores Ranbit from /dev/urandom
+    uint8_t randbits = 0;                                                         //Stores Ranbit from /dev/urandom
     clock_t time_begin = 0, time_end = 0;                                       //Used to generate time delay
-    srand((unsigned int)time(NULL));
 
     //Open file from arg
     programFile = fopen(argv[1], "r");
@@ -78,17 +77,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    //Create a chip8 processor with zero values
+    //Create a chip8 processor 
     chip8processor* p1 = init_chip8();
 
     //start ncurses
 	initscr();			        // Start curses mode 		
 	cbreak();			        // Line buffering disabled
 	keypad(stdscr, TRUE);		// Capture special key such f1 etc. 
-    noecho();                   //Supress echo
+    noecho();                   // Supress echo
     refresh();
 
     #ifdef DEBUG
+        // If debug is declared, write to debug.log
         FILE* debug_File = fopen("./debug.log","w");
     #endif
 
@@ -119,13 +119,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    //Free buffer after use
+    // Free buffer after use
     free(buffer);
 
     // Reset program counter to base and closes the file
     p1->programCounter = 0x200;
     fclose(programFile);
 
+    // NOT IMPLEMENT, strong random using uradom
     int randomData = open("/dev/urandom", O_RDONLY);// 
     if (randomData < 0)
     {
@@ -135,26 +136,32 @@ int main(int argc, char *argv[]) {
     }   
 
     #ifdef DEBUG
+        //If debug, Print out memory to debug log
         view_program_memory(p1, debug_File);
     #endif
 
+    // Create ncurse UI for chip8
     WINDOW * win = newwin(DISPLAY_RESOLUTION_VERTICAL + 2, DISPLAY_RESOLUTION_HORIZONTAL + 2, 0, 0);
     box(win, 0 , 0);
     wrefresh(win);
     wmove(win, 1, 1);
 
+    // Main loop
     while(0 == 0) {
         #ifdef DEBUG
+            // If debug, print out chip state to debug log
             debug_chip8_state(p1, debug_File);
         #endif
 
         if(p1->delayFlag != 0) {
-            //Delay program
+            // Delay program if delay was called
             if(p1->time_spent_delay*60 >= 1.0) {
+                // For each 1/60 of a second, reduce delaytimer by 1
                 p1->delayTimer -= 1;
                 p1->time_spent_delay = 0;
             }
             if(p1->delayTimer == 0) {
+                // Once delay is done, stop loop and continue program
                 p1->delayFlag = 0;
                 p1->programCounter += 2;
             }
@@ -179,6 +186,7 @@ int main(int argc, char *argv[]) {
             (p1->memory[p1->programCounter + 1] == 0xee)) {
                 //Return from subroutine
                 if(p1->stackSize == 0) {
+                    //Nothing on stack to return from
                     perror("ERROR: Stack underflowed into memory bounds\n");
                     close_program(p1, randomData);
                     exit(1);
@@ -194,6 +202,8 @@ int main(int argc, char *argv[]) {
             }
             else {
                 // call subroutine RCA, this can go into below 0x200 region
+                // Current doesn't work as there no documentation of this region
+                // Besides font stored here
             
                 //Store program counter into stack
                 if(p1->stackSize > CHIP8_STACK_SIZE) {
@@ -224,7 +234,8 @@ int main(int argc, char *argv[]) {
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0x1) {
             //jump command
-            //Convert to a single variable
+
+            //Get NNN from op code
             uint16_t tempAddress = 0;
             tempAddress = p1->memory[p1->programCounter] & 0x0f;
             tempAddress = tempAddress << 8;
@@ -248,11 +259,13 @@ int main(int argc, char *argv[]) {
                 close_program(p1, randomData);
                 exit(1);
             }
-            p1->memory[p1->stackPointer] = ((p1->programCounter + 2) & 0xf00) >> 8;    //grab the programcounter's first 4 bits
+            //Grab the current program counter, advance it by 1 step and store it in the stack.
+            p1->memory[p1->stackPointer] = ((p1->programCounter + 2) & 0xf00) >> 8;    
             p1->memory[p1->stackPointer + 1] = ((p1->programCounter + 2) & 0xff);
             p1->stackPointer += 2;
             p1->stackSize += 1;
 
+            // Grab subrooutine address and store it.
             uint16_t tempAddress = 0;
             tempAddress = p1->memory[p1->programCounter] & 0x0f;
             tempAddress = tempAddress << 8;
@@ -282,7 +295,6 @@ int main(int argc, char *argv[]) {
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0x5) {
             // Skip if Vx == Vy
-            
             if(p1->registers[p1->memory[p1->programCounter] & 0xf] == p1->registers[(p1->memory[p1->programCounter + 1] & 0xf0) >> 4] &&
             (p1->memory[p1->programCounter + 1] & 0x0f) == 0) {
                 p1->programCounter += 2;
@@ -356,7 +368,8 @@ int main(int argc, char *argv[]) {
             }
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xa) {
-            //Convert to a single variable
+            // I = NNNN
+            // Grab NNN from opcode
             uint16_t tempAddress = 0;
             tempAddress = p1->memory[p1->programCounter] & 0x0f;
             tempAddress = tempAddress << 8;
@@ -367,18 +380,20 @@ int main(int argc, char *argv[]) {
                 close_program(p1, randomData);
                 exit(1);
             }
-
+            // Store NNN into address register
             p1->addressRegister = tempAddress;
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xb) {
-            //Convert to a single variable
+            // PC = V0 + NNNN
+            // Grab NNNN from opcode
             uint16_t tempAddress = 0;
             tempAddress = p1->memory[p1->programCounter] & 0x0f;
             tempAddress = tempAddress << 8;
             tempAddress = tempAddress | p1->memory[p1->programCounter + 1]; 
-
+            // Add V0 to NNNN
             tempAddress += p1->registers[0];
 
+            //Check if Program counter is in restricted part of memory
             if(tempAddress < 0x200 || tempAddress > 0xEA0) {
                 perror("ERROR: Program ran out of memory bounds\n");
                 close_program(p1, randomData);
@@ -389,11 +404,12 @@ int main(int argc, char *argv[]) {
             continue;
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xc) {
-            /*ssize_t result = read(randomData, randbits, sizeof(randbits));
-            read(randomData, randbits, sizeof(randbits));
-            p1->registers[p1->memory[p1->programCounter] & 0xf ] = *randbits & p1->memory[p1->programCounter + 1]; 
-            */
-            p1->registers[p1->memory[p1->programCounter] & 0xf ] = (rand() %256) & p1->memory[p1->programCounter + 1];
+            // Vx = Random() & NN
+            // ssize_t result = read(randomData, randbits, sizeof(randbits));
+            read(randomData, &randbits, sizeof(randbits));
+            p1->registers[p1->memory[p1->programCounter] & 0xf ] = randbits & p1->memory[p1->programCounter + 1]; 
+            
+            // p1->registers[p1->memory[p1->programCounter] & 0xf ] = (rand() %256) & p1->memory[p1->programCounter + 1];
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xd) {
             //Draw DXYN
@@ -428,6 +444,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             else if(p1->memory[p1->programCounter + 1] == 0xa1){
+                // Skip if Vx != Key()
                 if(p1->registers[p1->memory[p1->programCounter] & 0xf] != p1->userinput && p1->userinput_flag != 0) {
                     p1->programCounter += 2;
                 }
@@ -436,9 +453,12 @@ int main(int argc, char *argv[]) {
         }
         else if ((p1->memory[p1->programCounter] >> 4) == 0xf) {
             if(p1->memory[p1->programCounter + 1] == 0x07) {
+                // Vx = current delay value
                 p1->registers[p1->memory[p1->programCounter] & 0xf] = p1->delayTimer;
             }
             else if(p1->memory[p1->programCounter + 1] == 0x0a) {
+                // Get key press and store it in Vx, stop program until valid key is press
+                // Input is in hex
                 int valid_character = 0, ch = 0;
                 
                 while(valid_character == 0) {
@@ -517,7 +537,7 @@ int main(int argc, char *argv[]) {
                 p1->userinput_flag = 1;
             }
             else if(p1->memory[p1->programCounter + 1] == 0x15) {
-                //delay
+                // Set a delay based on the value of Vx
                 time_begin = clock();
                 p1->delayFlag = 1;
                 p1->delayTimer = p1->registers[p1->memory[p1->programCounter] & 0x0f];
@@ -525,17 +545,20 @@ int main(int argc, char *argv[]) {
                 continue;
             }
             else if(p1->memory[p1->programCounter + 1] == 0x18) {
-                //sound timer
+                // Set a sound to be played after a set amount of time
+                // Value to be delay is Vx
                 time_begin = clock();
                 p1->soundFlag = 1;
                 p1->soundTimer = p1->registers[p1->memory[p1->programCounter] & 0x0f];
                 p1->time_spent_sound = 0;
             }
             else if(p1->memory[p1->programCounter + 1] == 0x1e) {
-                // add to i register
+                // I += Vx
+
                 uint32_t tempAddress = p1->addressRegister + p1->registers[p1->memory[p1->programCounter] & 0x0f];
                 p1->addressRegister += p1->registers[p1->memory[p1->programCounter] & 0x0f];
 
+                // If there is a overflow, then set VF = 1
                 if(tempAddress > 0xFFF) {
                     p1->registers[15] = 1;
                 }
@@ -592,12 +615,12 @@ int main(int argc, char *argv[]) {
         p1->programCounter += 2;
 
         if(p1->soundFlag != 0) {
-            //Sound will play (double)p1->soundTimer/60
+            //Sound will play after delay was met
             if(p1->time_spent_sound * 60 >= 1.0) {
                 p1->soundTimer -= 1;
                 p1->time_spent_sound = 0;
             }
-            if(p1-soundTimer == 0) {
+            if(p1->soundTimer == 0) {
                 printf("\a");
                 p1->soundFlag = 0;
             }
@@ -749,6 +772,7 @@ chip8processor* init_chip8(void) {
 }
 
 void destory_chip(chip8processor* p1) {
+    // Free memory
     free(p1);
 }
 
