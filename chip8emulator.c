@@ -55,7 +55,8 @@ int main(int argc, char *argv[]) {
     unsigned char * buffer = (unsigned char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     //size_t result;
     uint8_t randbits = 0;                                                         //Stores Ranbit from /dev/urandom
-    clock_t time_begin = 0, time_end = 0;                                       //Used to generate time delay
+    clock_t time_begin = clock(), time_end = 0;                                       //Used to generate time delay
+    double period_clock = 17;                                                 //Clock period is 16 milliseconds
 
     //Open file from arg
     programFile = fopen(argv[1], "r");
@@ -71,11 +72,11 @@ int main(int argc, char *argv[]) {
     fileSize = ftell (programFile);
     rewind (programFile); //rewind back to beginning of program
 
-    // Check to see if the file size matches the opcode format
+    /* Check to see if the file size matches the opcode format
     if(fileSize % 2 != 0) {
         fprintf(stderr,"Error: file is not the correct format\n");
         return 1;
-    }
+    }*/
 
     //Create a chip8 processor 
     chip8processor* p1 = init_chip8();
@@ -126,7 +127,7 @@ int main(int argc, char *argv[]) {
     p1->programCounter = 0x200;
     fclose(programFile);
 
-    // NOT IMPLEMENT, strong random using uradom
+    // strong random using uradom
     int randomData = open("/dev/urandom", O_RDONLY);// 
     if (randomData < 0)
     {
@@ -169,27 +170,46 @@ int main(int argc, char *argv[]) {
         opcode_NNN =  opcode_NNN << 8;
         opcode_NNN =  opcode_NNN | p1->memory[p1->programCounter + 1];
 
-        if(p1->delayFlag != 0) 
-            {
-            // Delay program if delay was called
-            if(p1->time_spent_delay*60 >= 1.0) 
-            {
-                // For each 1/60 of a second, reduce delaytimer by 1
-                p1->delayTimer -= 1;
-                p1->time_spent_delay = 0;
-            }
-            if(p1->delayTimer == 0) 
-            {
-                // Once delay is done, stop loop and continue program
+        // 60hz timer for chip
+        time_end = clock();
+        p1->time_spent_delay = (double)(time_end - time_begin) / CLOCKS_PER_SEC;
+        time_begin = time_end;
+        double elapsed_time = period_clock - p1->time_spent_delay;
+        if (elapsed_time > 0) {
+            usleep(elapsed_time);
+        }
+        /*if(p1->time_spent_delay * 60 <= 1.0) 
+        {
+            // If 1/60 has passed, continue onto the program
+            // Otherwise loop again
+            continue;
+        } */
+        else {
+            p1->time_spent_delay = 0;
+        }
+
+        if(p1->delayFlag == 1) 
+        {
+            // If there was a delay trigger, loop until delay timer decrements to 0
+            p1->delayTimer -= 1;
+            if (p1->delayTimer == 0) {
                 p1->delayFlag = 0;
                 p1->programCounter += 2;
             }
-            time_end = clock();
-            p1->time_spent_delay += (double)(time_end - time_begin) / CLOCKS_PER_SEC;
-            time_begin = time_end;
             continue;
         }
 
+        // If sound was called, keep playing buzz until timer ends
+        if(p1->soundFlag == 1)
+        {
+            beep();
+            p1->soundTimer -= 1;
+            if(p1->soundTimer == 0)
+            {
+                p1->soundFlag = 0;
+            }
+        }
+    
         if (opcode_most_significant_bit == 0x0)
         {
             // 0x0XXX instructions
@@ -678,22 +698,6 @@ int main(int argc, char *argv[]) {
 
         // Increment programer
         p1->programCounter += 2;
-
-        if(p1->soundFlag != 0) {
-            //Sound will play after delay was met
-            if(p1->time_spent_sound * 60 >= 1.0) {
-                p1->soundTimer -= 1;
-                p1->time_spent_sound = 0;
-            }
-            if(p1->soundTimer == 0) {
-                printf("\a");
-                p1->soundFlag = 0;
-            }
-            time_end = clock();
-            p1->time_spent_sound += (double)(time_end - time_begin) / CLOCKS_PER_SEC;
-            time_begin = time_end;
-        }
-        
     }
 
     close_program(p1, randomData);

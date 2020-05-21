@@ -22,6 +22,7 @@ Useage.
 * make emulator &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  //builds emulator only
 * make disassembler&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  //builds disassembler only
 * make clean &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  //remove output files
+* make emulatorDEBUG
 
 ./chip8disassembler	<rom file> &nbsp;&nbsp;&nbsp;&nbsp;  //disassembles target rom <br>
 ./chip8emulator		<rom file> &nbsp;&nbsp;&nbsp;&nbsp;  //Emulates target rom
