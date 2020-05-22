@@ -13,7 +13,4 @@ hex keyboard
 
 display most likley to use Ncurses
 
-Delay doesn't work because delay doesn't decrement while counting down
-need to fix this
-
 Pong doesn't work, debugging it, it try to draw a 6 height object at 63 ,31 which will cuase the object to go out of bounce

@@ -31,11 +31,11 @@ int main(int argc, char *argv[]) {
     fileSize = ftell (programFile);
     rewind (programFile); //rewind back to beginning of program
 
-    // Check to see if the file size matches the opcode format
+    /* Check to see if the file size matches the opcode format
     if(fileSize % 2 != 0) {
         fprintf(stderr,"Error: file is not the correct format\n");
         return 1;
-    }
+    }*/
 
    printf("PC\t\tOP Code\t\tInstructions\n");
 

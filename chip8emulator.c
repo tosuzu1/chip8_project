@@ -172,20 +172,12 @@ int main(int argc, char *argv[]) {
 
         // 60hz timer for chip
         time_end = clock();
-        p1->time_spent_delay = (double)(time_end - time_begin) / CLOCKS_PER_SEC;
+        p1->time_spent_delay = (double)(time_end - time_begin) / CLOCKS_PER_SEC;    // Return a time in seconds
+        p1->time_spent_delay /= 1000; // Convert seconds to milli seconds
         time_begin = time_end;
         double elapsed_time = period_clock - p1->time_spent_delay;
         if (elapsed_time > 0) {
             usleep(elapsed_time);
-        }
-        /*if(p1->time_spent_delay * 60 <= 1.0) 
-        {
-            // If 1/60 has passed, continue onto the program
-            // Otherwise loop again
-            continue;
-        } */
-        else {
-            p1->time_spent_delay = 0;
         }
 
         if(p1->delayFlag == 1) 
@@ -485,27 +477,41 @@ int main(int argc, char *argv[]) {
             //Draw DXYN
             uint8_t height = opcode_N; // Grab N from opcode
             uint16_t i_temp = p1->addressRegister;
-            //uint16_t disp_add = 0xF00;
+            uint16_t display_base_address = 0xF00;
             uint8_t xPixel = p1->registers[opcode_Vx];
             uint8_t yPixel = p1->registers[opcode_Vy];
+            uint16_t draw_point_xy_address = display_base_address + xPixel/8 + yPixel * DISPLAY_RESOLUTION_VERTICAL/8;
+            uint8_t draw_point_x_offset = xPixel  % 8;
             uint8_t check_flip = 0;
-
-            if(xPixel > DISPLAY_RESOLUTION_HORIZONTAL  || yPixel + height > DISPLAY_RESOLUTION_VERTICAL) 
+            
+            /*if(xPixel > DISPLAY_RESOLUTION_HORIZONTAL  || yPixel + height > DISPLAY_RESOLUTION_VERTICAL) 
             {
                 //Check draw boundry
                 perror("ERROR: Program Draw out of bound\n");
                 close_program(p1, randomData);
                 exit(1);
-            }
+            }*/
+            // In one documentation, it state that if the draw is out of bound, then draw on other end
 
             for(uint8_t j = 0; j < height; j++) 
             {
-                check_flip = (p1->displayGrid[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
+                /*check_flip = (p1->displayGrid[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
                 if(check_flip > 0) 
                 {
                     p1->registers[0xf] = 1;
-                }   
-                p1->displayGrid[yPixel + j] = p1->displayGrid[yPixel + j] ^ ((uint64_t)p1->memory[i_temp + (2*j)] << (60 - xPixel));
+                }   */
+                p1->memory[draw_point_xy_address] = p1->memory[draw_point_xy_address] ^ (p1->memory[i_temp] >> draw_point_x_offset); 
+                if(xPixel < 56 || draw_point_x_offset != 0)
+                {
+                    // Creates a mask needed for shifting the least significant bits , this will also drop any images that will clip
+                    uint8_t frame_buffer_shift_mask = 0x0;
+                    for(uint8_t c = 1; c <= draw_point_x_offset; c++)
+                    {
+                        frame_buffer_shift_mask = (frame_buffer_shift_mask << 1) | 0x1;
+                    }
+
+                    p1->memory[draw_point_xy_address + 1] = p1->memory[draw_point_xy_address + 1] ^ (p1->memory[i_temp] & frame_buffer_shift_mask);
+                }
             }
             draw_display( p1,  win);
         }
@@ -531,6 +537,7 @@ int main(int argc, char *argv[]) {
         }
         else if (opcode_most_significant_bit == 0xf) 
         {
+            // 0xfXXX
             if(opcode_lower_half == 0x07) 
             {
                 // Vx = current delay value
@@ -670,9 +677,9 @@ int main(int argc, char *argv[]) {
             }
             else if(opcode_lower_half== 0x55) {
                 // REGDUMP
-                for (uint8_t i = 0; i <= (opcode_Vx); i += 1) {
+                for (uint8_t i = 0; i <= opcode_Vx; i += 1) {
+                    // Load V0 to 
                     p1->memory[p1->addressRegister + i]  = p1->registers[i];
-                    
                 }
             }
             else if(opcode_lower_half == 0x65) {
@@ -911,9 +918,11 @@ void draw_display(chip8processor* p1, WINDOW * win) {
     werase(win);
     box(win, 0 , 0);
     wmove(win, 1, 1);
-    for(int i = 0; i < DISPLAY_RESOLUTION_VERTICAL; i++) {
-        for(int j = 0;j < DISPLAY_RESOLUTION_HORIZONTAL; j++) {
-            if((p1->displayGrid[i] >> (63 - j) & 0x1) == 1)
+    uint8_t y_axis = 2;
+    uint16_t frameBuffer_base_address = 0xf00;
+    for(uint8_t frameBuffer_offset = 0; frameBuffer_base_address + frameBuffer_offset =< 0xFFF; frameBuffer_offset++) {
+        for(int j = 0; j < 8; j++) {
+            if((p1->memory[i] >> (7 - j) & 0x1) == 1)
             {
                 waddch(win,'#');
             }
@@ -921,8 +930,11 @@ void draw_display(chip8processor* p1, WINDOW * win) {
                 waddch(win,' ');
             }
         }
-        wmove(win, i+2, 1);
-
+        if((frameBuffer_offset + 1 ) % 8 == 0) {
+            // Every 64 bit, move to a new line
+             wmove(win, y_axis , 1);
+             y_axis += 1;
+        }
     }
     wrefresh(win);
 }
