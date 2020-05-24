@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
     while(0 == 0)
     {
         #ifdef DEBUG
-            // If debug, print out chip state to debug log
+            // If debug, print out chip state to debug.log
             debug_chip8_state(p1, debug_File);
         #endif
 
