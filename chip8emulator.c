@@ -51,9 +51,8 @@ int main(int argc, char *argv[]) {
 
     //Variables used
     FILE *programFile;
-    long int fileSize;
+    // long int fileSize;
     unsigned char * buffer = (unsigned char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
-    //size_t result;
     uint8_t randbits = 0;                                                         //Stores Ranbit from /dev/urandom
     clock_t time_begin = clock(), time_end = 0;                                       //Used to generate time delay
     double period_clock = 17;                                                 //Clock period is 16 milliseconds
@@ -66,17 +65,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr,"Error: Cannot open file or file not found\n");
         return 1;
     }
-
-    // obtain file size and check to see if it is a valid file
-    fseek (programFile , 0 , SEEK_END);
-    fileSize = ftell (programFile);
-    rewind (programFile); //rewind back to beginning of program
-
-    /* Check to see if the file size matches the opcode format
-    if(fileSize % 2 != 0) {
-        fprintf(stderr,"Error: file is not the correct format\n");
-        return 1;
-    }*/
 
     //Create a chip8 processor 
     chip8processor* p1 = init_chip8();
@@ -483,7 +471,6 @@ int main(int argc, char *argv[]) {
             //Draw DXYN
             uint8_t height = opcode_N; // Grab N from opcode
             uint16_t i_temp = p1->addressRegister;
-            uint16_t display_base_address = 0xF00;
             uint8_t xPixel = p1->registers[opcode_Vx];
             uint8_t yPixel = p1->registers[opcode_Vy];
             p1->registers[0xf] = 0;
@@ -494,6 +481,7 @@ int main(int argc, char *argv[]) {
                 {
                     if(p1->displayGrid[xPixel + x][yPixel + y] == (0x1 & ( p1->memory[i_temp + (2*y)] >> (7 - x))) && p1->registers[0xf] == 0)
                     {
+                        // Check to see if a pixel will flip
                         p1->registers[0xf] = 1;
                     }
                     p1->displayGrid[xPixel + x][yPixel + y] = p1->displayGrid[xPixel + x][yPixel + y] ^ (0x1 & ( p1->memory[i_temp + (2*y)] >> (7 - x)));

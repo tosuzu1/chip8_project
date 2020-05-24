@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
 
     //Variables used
     FILE *programFile;
-    int fileSize = 0, programCounter = 0x200;
+    int  programCounter = 0x200;
     unsigned char * buffer = (unsigned char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     uint16_t opcode;
     //size_t result;
@@ -25,17 +25,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr,"Error: Cannot open file or file not found\n");
         return 1;
     }
-
-    // obtain file size and check to see if it is a valid file
-    fseek (programFile , 0 , SEEK_END);
-    fileSize = ftell (programFile);
-    rewind (programFile); //rewind back to beginning of program
-
-    /* Check to see if the file size matches the opcode format
-    if(fileSize % 2 != 0) {
-        fprintf(stderr,"Error: file is not the correct format\n");
-        return 1;
-    }*/
 
    printf("PC\t\tOP Code\t\tInstructions\n");
 
