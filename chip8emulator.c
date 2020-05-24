@@ -480,38 +480,19 @@ int main(int argc, char *argv[]) {
             uint16_t display_base_address = 0xF00;
             uint8_t xPixel = p1->registers[opcode_Vx];
             uint8_t yPixel = p1->registers[opcode_Vy];
-            uint16_t draw_point_xy_address = display_base_address + xPixel/8 + yPixel * DISPLAY_RESOLUTION_VERTICAL/8;
-            uint8_t draw_point_x_offset = xPixel  % 8;
+            // uint16_t draw_point_xy_address = display_base_address + xPixel/8 + yPixel * DISPLAY_RESOLUTION_VERTICAL/8;
+            // uint8_t draw_point_x_offset = xPixel  % 8;
             uint8_t check_flip = 0;
-            
-            /*if(xPixel > DISPLAY_RESOLUTION_HORIZONTAL  || yPixel + height > DISPLAY_RESOLUTION_VERTICAL) 
-            {
-                //Check draw boundry
-                perror("ERROR: Program Draw out of bound\n");
-                close_program(p1, randomData);
-                exit(1);
-            }*/
-            // In one documentation, it state that if the draw is out of bound, then draw on other end
+            p1->registers[0xf] = 0;
 
-            for(uint8_t j = 0; j < height; j++) 
+            for(uint8_t j = 0; j < height && yPixel + j < 64; j++) 
             {
-                /*check_flip = (p1->displayGrid[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
-                if(check_flip > 0) 
+                check_flip = (p1->displayGrid[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
+                if(check_flip > 0 && p1->registers[0xf] == 0) 
                 {
                     p1->registers[0xf] = 1;
-                }   */
-                p1->memory[draw_point_xy_address] = p1->memory[draw_point_xy_address] ^ (p1->memory[i_temp] >> draw_point_x_offset); 
-                if(xPixel < 56 || draw_point_x_offset != 0)
-                {
-                    // Creates a mask needed for shifting the least significant bits , this will also drop any images that will clip
-                    uint8_t frame_buffer_shift_mask = 0x0;
-                    for(uint8_t c = 1; c <= draw_point_x_offset; c++)
-                    {
-                        frame_buffer_shift_mask = (frame_buffer_shift_mask << 1) | 0x1;
-                    }
-
-                    p1->memory[draw_point_xy_address + 1] = p1->memory[draw_point_xy_address + 1] ^ (p1->memory[i_temp] & frame_buffer_shift_mask);
-                }
+                }   
+                p1->displayGrid[yPixel + j] = p1->displayGrid[yPixel + j] ^ ((uint64_t)p1->memory[i_temp + (2*j)] << (60 - xPixel));
             }
             draw_display( p1,  win);
         }
@@ -920,9 +901,11 @@ void draw_display(chip8processor* p1, WINDOW * win) {
     wmove(win, 1, 1);
     uint8_t y_axis = 2;
     uint16_t frameBuffer_base_address = 0xf00;
-    for(uint8_t frameBuffer_offset = 0; frameBuffer_base_address + frameBuffer_offset =< 0xFFF; frameBuffer_offset++) {
-        for(int j = 0; j < 8; j++) {
-            if((p1->memory[i] >> (7 - j) & 0x1) == 1)
+    for(int i = 0; i < DISPLAY_RESOLUTION_VERTICAL; i++) 
+    {
+        for(int j = 0;j < DISPLAY_RESOLUTION_HORIZONTAL; j++) 
+        {
+            if((p1->displayGrid[i] >> (63 - j) & 0x1) == 1)
             {
                 waddch(win,'#');
             }
@@ -930,11 +913,7 @@ void draw_display(chip8processor* p1, WINDOW * win) {
                 waddch(win,' ');
             }
         }
-        if((frameBuffer_offset + 1 ) % 8 == 0) {
-            // Every 64 bit, move to a new line
-             wmove(win, y_axis , 1);
-             y_axis += 1;
-        }
+         wmove(win, i+2, 1);
     }
     wrefresh(win);
 }
