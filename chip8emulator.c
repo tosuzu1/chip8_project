@@ -31,7 +31,7 @@ typedef struct chip8processor {
     uint16_t addressRegister;
     double time_spent_sound;                    
     double time_spent_delay;
-    uint64_t displayGrid[DISPLAY_RESOLUTION_VERTICAL];  //Hold display
+    uint8_t displayGrid[DISPLAY_RESOLUTION_HORIZONTAL][DISPLAY_RESOLUTION_VERTICAL];  //Hold display
 } chip8processor;   
 
 chip8processor* init_chip8(void);
@@ -209,7 +209,13 @@ int main(int argc, char *argv[]) {
                 opcode_lower_half == 0xe0) 
             {
                 // call clear screen
-                memset(p1->displayGrid, 0, sizeof(uint32_t)* DISPLAY_RESOLUTION_VERTICAL); //Zero out display
+                 for(int x = 0; x < DISPLAY_RESOLUTION_HORIZONTAL; x ++)
+                {
+                    for(int y = 0; y < DISPLAY_RESOLUTION_VERTICAL; y ++)
+                    {
+                        p1->displayGrid[x][y] = 0;
+                    }
+                }
                 werase(win);
                 box(win, 0 , 0);
                 wmove(win, 1, 1);
@@ -480,19 +486,18 @@ int main(int argc, char *argv[]) {
             uint16_t display_base_address = 0xF00;
             uint8_t xPixel = p1->registers[opcode_Vx];
             uint8_t yPixel = p1->registers[opcode_Vy];
-            // uint16_t draw_point_xy_address = display_base_address + xPixel/8 + yPixel * DISPLAY_RESOLUTION_VERTICAL/8;
-            // uint8_t draw_point_x_offset = xPixel  % 8;
-            uint8_t check_flip = 0;
             p1->registers[0xf] = 0;
 
-            for(uint8_t j = 0; j < height && yPixel + j < 64; j++) 
+            for(uint8_t y = 0; y < height && yPixel + y < DISPLAY_RESOLUTION_VERTICAL; y++) 
             {
-                check_flip = (p1->displayGrid[yPixel] >> (56 - xPixel) ) & p1->memory[i_temp]; 
-                if(check_flip > 0 && p1->registers[0xf] == 0) 
+                for(uint8_t x = 0; x < 8 && x + xPixel < DISPLAY_RESOLUTION_HORIZONTAL ; x++)
                 {
-                    p1->registers[0xf] = 1;
-                }   
-                p1->displayGrid[yPixel + j] = p1->displayGrid[yPixel + j] ^ ((uint64_t)p1->memory[i_temp + (2*j)] << (60 - xPixel));
+                    if(p1->displayGrid[xPixel + x][yPixel + y] == (0x1 & ( p1->memory[i_temp + (2*y)] >> (7 - x))) && p1->registers[0xf] == 0)
+                    {
+                        p1->registers[0xf] = 1;
+                    }
+                    p1->displayGrid[xPixel + x][yPixel + y] = p1->displayGrid[xPixel + x][yPixel + y] ^ (0x1 & ( p1->memory[i_temp + (2*y)] >> (7 - x)));
+                }
             }
             draw_display( p1,  win);
         }
@@ -711,7 +716,13 @@ chip8processor* init_chip8(void) {
     p1->addressRegister = 0x0;
     p1->time_spent_sound = 0.0;
     p1->time_spent_delay = 0.0;
-    memset(p1->displayGrid, 0, sizeof(uint32_t)* DISPLAY_RESOLUTION_VERTICAL); //Zero out display
+    for(int x = 0; x < DISPLAY_RESOLUTION_HORIZONTAL; x ++)
+    {
+        for(int y = 0; y < DISPLAY_RESOLUTION_VERTICAL; y ++)
+        {
+            p1->displayGrid[x][y] = 0;
+        }
+    }
 
     // Load Font sprites into chip8
     // Load 0x0 sprites
@@ -881,12 +892,6 @@ void view_program_memory(chip8processor* p1, FILE* debug_File) {
         fwrite(str,1,n,debug_File);
         memset(str,'\0',sizeof(str));
     }
-
-    for(unsigned int i = 0; i < DISPLAY_RESOLUTION_VERTICAL; i++) {
-         n = sprintf(str, "DEBUG: Display memory[%d] %0lX\n", i, p1->displayGrid[i]);
-        fwrite(str,1,n,debug_File);
-        memset(str,'\0',sizeof(str));
-    }
 }
 
 void close_program(chip8processor* p1 , int randomData) {
@@ -899,13 +904,12 @@ void draw_display(chip8processor* p1, WINDOW * win) {
     werase(win);
     box(win, 0 , 0);
     wmove(win, 1, 1);
-    uint8_t y_axis = 2;
-    uint16_t frameBuffer_base_address = 0xf00;
-    for(int i = 0; i < DISPLAY_RESOLUTION_VERTICAL; i++) 
+    int y_axis = 1;
+    for(int y = 0; y < DISPLAY_RESOLUTION_VERTICAL; y++) 
     {
-        for(int j = 0;j < DISPLAY_RESOLUTION_HORIZONTAL; j++) 
+        for(int x = 0; x < DISPLAY_RESOLUTION_HORIZONTAL; x++) 
         {
-            if((p1->displayGrid[i] >> (63 - j) & 0x1) == 1)
+            if(p1->displayGrid[x][y]  == 1)
             {
                 waddch(win,'#');
             }
@@ -913,7 +917,8 @@ void draw_display(chip8processor* p1, WINDOW * win) {
                 waddch(win,' ');
             }
         }
-         wmove(win, i+2, 1);
+        y_axis += 1;
+        wmove(win, y_axis, 1);
     }
     wrefresh(win);
 }
