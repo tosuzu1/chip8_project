@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <unistd.h>    //for sleep function testing
 #include <ncurses.h>
+#include <termios.h>
 
 #define DISPLAY_RESOLUTION_HORIZONTAL 64
 #define DISPLAY_RESOLUTION_VERTICAL 32
@@ -40,6 +41,8 @@ void debug_chip8_state(chip8processor* p1, FILE* debug_File) ;
 void view_program_memory(chip8processor* p1, FILE* debug_File) ;
 void close_program(chip8processor* pi , int randomData);
 void draw_display(chip8processor* p1, WINDOW * win);
+int kbhit(void);
+void nonblock(int state);
 
 
 int main(int argc, char *argv[]) {
@@ -51,7 +54,7 @@ int main(int argc, char *argv[]) {
 
     //Variables used
     FILE *programFile;
-    int ch = 0;
+    char ch = 0;
     // long int fileSize;
     unsigned char * buffer = (unsigned char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     uint8_t randbits = 0;                                                         //Stores Ranbit from /dev/urandom
@@ -134,7 +137,7 @@ int main(int argc, char *argv[]) {
     // Create ncurse UI for chip8
     WINDOW * win = newwin(DISPLAY_RESOLUTION_VERTICAL + 4, DISPLAY_RESOLUTION_HORIZONTAL + 2, 0, 0);
     cbreak();			        // Line buffering disabled
-    nodelay(stdscr, TRUE);
+    // nodelay(stdscr, TRUE);
     box(win, 0 , 0);
     wrefresh(win);
     wmove(win, 1, 1);
@@ -171,7 +174,7 @@ int main(int argc, char *argv[]) {
         if (elapsed_time > 0) {
             usleep(elapsed_time);
         }
-
+        timeout(0);
         ch = getch();   //Get keybaord input
         switch(ch) 
         {
@@ -227,7 +230,7 @@ int main(int argc, char *argv[]) {
                 p1->userinput = 0xff;
                 break;
         }
-        wmove(win, 34, 1);
+        wmove(win, 34, 5);
         waddch(win,(char)ch);
         wmove(win,1,1);
         wrefresh(win);
@@ -588,7 +591,7 @@ int main(int argc, char *argv[]) {
                 // Get key press and store it in Vx, stop program until valid key is press
                 // Input is in hex
                 int valid_character = 0;
-                keypad(stdscr, false);
+                timeout(-1);
                 
                 while(valid_character == 0) 
                 {
@@ -976,4 +979,40 @@ void draw_display(chip8processor* p1, WINDOW * win) {
         wmove(win, y_axis, 1);
     }
     wrefresh(win);
+}
+
+int kbhit()
+{
+    struct timeval tv;
+    fd_set fds;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    FD_ZERO(&fds);
+    FD_SET(STDIN_FILENO, &fds); //STDIN_FILENO is 0
+    select(STDIN_FILENO+1, &fds, NULL, NULL, &tv);
+    return FD_ISSET(STDIN_FILENO, &fds);
+}
+
+void nonblock(int state)
+{
+    struct termios ttystate;
+
+    //get the terminal state
+    tcgetattr(STDIN_FILENO, &ttystate);
+
+    if (state==1)
+    {
+        //turn off canonical mode
+        ttystate.c_lflag &= ~ICANON;
+        //minimum of number input read.
+        ttystate.c_cc[VMIN] = 1;
+    }
+    else if (state==0)
+    {
+        //turn on canonical mode
+        ttystate.c_lflag |= ICANON;
+    }
+    //set the terminal attributes.
+    tcsetattr(STDIN_FILENO, TCSANOW, &ttystate);
+
 }
