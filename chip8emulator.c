@@ -51,6 +51,7 @@ int main(int argc, char *argv[]) {
 
     //Variables used
     FILE *programFile;
+    int ch = 0;
     // long int fileSize;
     unsigned char * buffer = (unsigned char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     uint8_t randbits = 0;                                                         //Stores Ranbit from /dev/urandom
@@ -71,7 +72,8 @@ int main(int argc, char *argv[]) {
 
     //start ncurses
 	initscr();			        // Start curses mode 		
-	cbreak();			        // Line buffering disabled
+	
+
 	keypad(stdscr, TRUE);		// Capture special key such f1 etc. 
     noecho();                   // Supress echo
     refresh();
@@ -130,7 +132,9 @@ int main(int argc, char *argv[]) {
     #endif
 
     // Create ncurse UI for chip8
-    WINDOW * win = newwin(DISPLAY_RESOLUTION_VERTICAL + 2, DISPLAY_RESOLUTION_HORIZONTAL + 2, 0, 0);
+    WINDOW * win = newwin(DISPLAY_RESOLUTION_VERTICAL + 4, DISPLAY_RESOLUTION_HORIZONTAL + 2, 0, 0);
+    cbreak();			        // Line buffering disabled
+    nodelay(stdscr, TRUE);
     box(win, 0 , 0);
     wrefresh(win);
     wmove(win, 1, 1);
@@ -167,6 +171,68 @@ int main(int argc, char *argv[]) {
         if (elapsed_time > 0) {
             usleep(elapsed_time);
         }
+
+        ch = getch();   //Get keybaord input
+        switch(ch) 
+        {
+            case '0':
+                p1->userinput = 0x0;
+                break;
+            case '1':
+                p1->userinput  = 0x1;
+                break;
+            case '2':
+                p1->userinput  = 0x2;
+                break;
+            case '3':
+                p1->userinput  = 0x3;
+                break;
+            case '4':
+                p1->userinput  = 0x4;
+                break;
+            case '5':
+                p1->userinput  = 0x5;
+                break;
+            case '6':
+                p1->userinput  = 0x6;
+                break;
+            case '7':
+                p1->userinput  = 0x7;
+                break;
+            case '8':
+                p1->userinput  = 0x8;
+                break;
+            case '9':
+                p1->userinput  = 0x9;
+                break;
+            case 'a':
+                p1->userinput  = 0xa;
+                break;
+            case 'b':
+                p1->userinput  = 0xb;
+                break;
+            case 'c':
+                p1->userinput  = 0xc;
+                break;
+            case 'd':
+                p1->userinput  = 0xd;
+                break;
+            case 'e':
+                p1->userinput  = 0xe;
+                break;
+            case 'f':
+                p1->userinput  = 0xf;
+                break;
+            default :
+                p1->userinput = 0xff;
+                break;
+        }
+        wmove(win, 34, 1);
+        waddch(win,(char)ch);
+        wmove(win,1,1);
+        wrefresh(win);
+
+        flushinp();
 
         if(p1->delayFlag == 1) 
         {
@@ -494,7 +560,7 @@ int main(int argc, char *argv[]) {
             if(opcode_lower_half == 0x9e) 
             {
                 // Skip if Vx == key()
-                if(p1->registers[opcode_Vx] == p1->userinput && p1->userinput_flag != 0) 
+                if(p1->registers[opcode_Vx] == p1->userinput ) 
                 {
                     p1->programCounter += 2;
                 }
@@ -502,7 +568,7 @@ int main(int argc, char *argv[]) {
             else if(opcode_lower_half == 0xa1)
             {
                 // Skip if Vx != Key()
-                if(p1->registers[opcode_Vx] != p1->userinput && p1->userinput_flag != 0) 
+                if(p1->registers[opcode_Vx] != p1->userinput) 
                 {
                     p1->programCounter += 2;
                 }
@@ -521,7 +587,8 @@ int main(int argc, char *argv[]) {
             {
                 // Get key press and store it in Vx, stop program until valid key is press
                 // Input is in hex
-                int valid_character = 0, ch = 0;
+                int valid_character = 0;
+                keypad(stdscr, false);
                 
                 while(valid_character == 0) 
                 {
@@ -597,8 +664,8 @@ int main(int argc, char *argv[]) {
                             break;
                     }
                 }
+                keypad(stdscr, TRUE);
                 p1->userinput = p1->registers[opcode_Vx];
-                p1->userinput_flag = 1;
             }
             else if(opcode_lower_half == 0x15) 
             {
