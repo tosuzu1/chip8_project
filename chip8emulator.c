@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <unistd.h>    //for sleep function testing
 #include <ncurses.h>
-#include <termios.h>
+#include <SDL2/SDL.h>
 
 #define DISPLAY_RESOLUTION_HORIZONTAL 64
 #define DISPLAY_RESOLUTION_VERTICAL 32
@@ -171,67 +171,85 @@ int main(int argc, char *argv[]) {
         if (elapsed_time > 0) {
             usleep(elapsed_time);
         }
+
         nodelay(stdscr, TRUE);
 
-        ch = getch();   //Get keybaord input
-        switch(ch) 
+        if(kbhit())
         {
-            case '0':
-                p1->userinput[0] = 1;
-                break;
-            case '1':
-                p1->userinput[1]  = 1;
-                break;
-            case '2':
-                p1->userinput[2]  = 1;
-                break;
-            case '3':
-                p1->userinput[3]  = 1;
-                break;
-            case '4':
-                p1->userinput[4]  = 1;
-                break;
-            case '5':
-                p1->userinput[5]  = 1;
-                break;
-            case '6':
-                p1->userinput[6]  = 1;
-                break;
-            case '7':
-                p1->userinput[7]  = 1;
-                break;
-            case '8':
-                p1->userinput[8]  = 1;
-                break;
-            case '9':
-                p1->userinput[9]  = 1;
-                break;
-            case 'a':
-                p1->userinput[10]  = 1;
-                break;
-            case 'b':
-                p1->userinput[11]  = 1;
-                break;
-            case 'c':
-                p1->userinput[12]  = 1;
-                break;
-            case 'd':
-                p1->userinput [13] = 1;
-                break;
-            case 'e':
-                p1->userinput[14]  = 1;
-                break;
-            case 'f':
-                p1->userinput[15]  = 1;
-                break;
-            case 'q':
-                // q key calls quits
-                quit_flag = 1;
-                break;
-            default :
-                // memset(p1->userinput,0,sizeof(uint8_t)*17);
-                break;
+            ch = getch();   //Get keybaord input
+            while(ch != ERR)
+            {
+                switch(ch) 
+                {
+                    case '0':
+                        p1->userinput[0] = 1;
+                        break;
+                    case '1':
+                        p1->userinput[1]  = 1;
+                        break;
+                    case '2':
+                        p1->userinput[2]  = 1;
+                        break;
+                    case '3':
+                        p1->userinput[3]  = 1;
+                        break;
+                    case '4':
+                        p1->userinput[4]  = 1;
+                        break;
+                    case '5':
+                        p1->userinput[5]  = 1;
+                        break;
+                    case '6':
+                        p1->userinput[6]  = 1;
+                        break;
+                    case '7':
+                        p1->userinput[7]  = 1;
+                        break;
+                    case '8':
+                        p1->userinput[8]  = 1;
+                        break;
+                    case '9':
+                        p1->userinput[9]  = 1;
+                        break;
+                    case 'a':
+                        p1->userinput[10]  = 1;
+                        break;
+                    case 'b':
+                        p1->userinput[11]  = 1;
+                        break;
+                    case 'c':
+                        p1->userinput[12]  = 1;
+                        break;
+                    case 'd':
+                        p1->userinput [13] = 1;
+                        break;
+                    case 'e':
+                        p1->userinput[14]  = 1;
+                        break;
+                    case 'f':
+                        p1->userinput[15]  = 1;
+                        break;
+                    case 'q':
+                        // q key calls quits
+                        quit_flag = 1;
+                        break;
+                    default :
+                        // memset(p1->userinput,0,sizeof(uint8_t)*17);
+                        break;
+                }
+                ch = getch();
+            }
+            wmove(win, 34, 5);
+            waddch(win,(char)ch);
+            wmove(win,1,1);
+            wrefresh(win);
         }
+        else 
+        {
+           
+        }
+        
+
         wmove(win, 34, 5);
         waddch(win,(char)ch);
         wmove(win,1,1);
@@ -548,13 +566,6 @@ int main(int argc, char *argv[]) {
             {
                 for(uint8_t x = 0; x < 8 && x + xPixel < DISPLAY_RESOLUTION_HORIZONTAL ; x++)
                 {
-                    /* if(p1->displayGrid[xPixel + x][yPixel + y] == (0x1 & ( p1->memory[i_temp + (2*y)] >> (7 - x))) && p1->registers[0xf] == 0)
-                    {
-                        // Check to see if a pixel will flip
-                        p1->registers[0xf] = 1;
-                    }
-                    p1->displayGrid[xPixel + x][yPixel + y] = p1->displayGrid[xPixel + x][yPixel + y] ^ (0x1 & ( p1->memory[i_temp + (2*y)] >> (7 - x)));
-                    */
                     if((p1->memory[i_temp + y] & (0x80 >> x)) != 0)
                     {
                         if(p1->displayGrid[xPixel + x][yPixel + y] == 1)
@@ -759,14 +770,6 @@ int main(int argc, char *argv[]) {
         // Increment programer
         p1->programCounter += 2;
 
-        if(kbhit()) 
-        {
-            for(int i = 0; i < 17; i++)
-            {
-                // Clear keyboard
-                p1->userinput[i] = 0;
-            }
-        }
     }
 
     close_program(p1, randomData);
@@ -1008,10 +1011,13 @@ int kbhit(void)
 {
     int ch = getch();
 
-    if (ch != ERR) {
+    if (ch != ERR) 
+    {
         ungetch(ch);
         return 1;
-    } else {
+    } 
+    else 
+    {
         return 0;
     }
 }
