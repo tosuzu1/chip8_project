@@ -25,7 +25,7 @@ typedef struct chip8processor {
     uint8_t delayFlag;                          //If 1, active delay 
     uint8_t soundTimer;
     uint8_t soundFlag;                          //If 1, active sound 
-    unsigned char userinput;                    //saves the last user input
+    uint8_t userinput[17];                    //saves the last user input
     uint8_t userinput_flag;                     //if 0, no key have ever been pressed
     uint16_t programCounter;
     uint16_t stackPointer;
@@ -42,8 +42,6 @@ void view_program_memory(chip8processor* p1, FILE* debug_File) ;
 void close_program(chip8processor* pi , int randomData);
 void draw_display(chip8processor* p1, WINDOW * win);
 int kbhit(void);
-void nonblock(int state);
-
 
 int main(int argc, char *argv[]) {
     //Check too she if a filename was given
@@ -60,6 +58,7 @@ int main(int argc, char *argv[]) {
     uint8_t randbits = 0;                                                         //Stores Ranbit from /dev/urandom
     clock_t time_begin = clock(), time_end = 0;                                       //Used to generate time delay
     double period_clock = 17;                                                 //Clock period is 16 milliseconds
+    int quit_flag = 0;
 
     //Open file from arg
     programFile = fopen(argv[1], "r");
@@ -75,8 +74,6 @@ int main(int argc, char *argv[]) {
 
     //start ncurses
 	initscr();			        // Start curses mode 		
-	
-
 	keypad(stdscr, TRUE);		// Capture special key such f1 etc. 
     noecho();                   // Supress echo
     refresh();
@@ -143,7 +140,7 @@ int main(int argc, char *argv[]) {
     wmove(win, 1, 1);
 
     // Main loop
-    while(0 == 0)
+    while(quit_flag == 0)
     {
         #ifdef DEBUG
             // If debug, print out chip state to debug.log
@@ -167,75 +164,78 @@ int main(int argc, char *argv[]) {
 
         // 60hz timer for chip
         time_end = clock();
-        p1->time_spent_delay = (double)(time_end - time_begin) / CLOCKS_PER_SEC;    // Return a time in seconds
+        p1->time_spent_delay = difftime(time_end , time_begin);    // Return a time in seconds
         p1->time_spent_delay /= 1000; // Convert seconds to milli seconds
         time_begin = time_end;
         double elapsed_time = period_clock - p1->time_spent_delay;
         if (elapsed_time > 0) {
             usleep(elapsed_time);
         }
-        timeout(0);
+        nodelay(stdscr, TRUE);
+
         ch = getch();   //Get keybaord input
         switch(ch) 
         {
             case '0':
-                p1->userinput = 0x0;
+                p1->userinput[0] = 1;
                 break;
             case '1':
-                p1->userinput  = 0x1;
+                p1->userinput[1]  = 1;
                 break;
             case '2':
-                p1->userinput  = 0x2;
+                p1->userinput[2]  = 1;
                 break;
             case '3':
-                p1->userinput  = 0x3;
+                p1->userinput[3]  = 1;
                 break;
             case '4':
-                p1->userinput  = 0x4;
+                p1->userinput[4]  = 1;
                 break;
             case '5':
-                p1->userinput  = 0x5;
+                p1->userinput[5]  = 1;
                 break;
             case '6':
-                p1->userinput  = 0x6;
+                p1->userinput[6]  = 1;
                 break;
             case '7':
-                p1->userinput  = 0x7;
+                p1->userinput[7]  = 1;
                 break;
             case '8':
-                p1->userinput  = 0x8;
+                p1->userinput[8]  = 1;
                 break;
             case '9':
-                p1->userinput  = 0x9;
+                p1->userinput[9]  = 1;
                 break;
             case 'a':
-                p1->userinput  = 0xa;
+                p1->userinput[10]  = 1;
                 break;
             case 'b':
-                p1->userinput  = 0xb;
+                p1->userinput[11]  = 1;
                 break;
             case 'c':
-                p1->userinput  = 0xc;
+                p1->userinput[12]  = 1;
                 break;
             case 'd':
-                p1->userinput  = 0xd;
+                p1->userinput [13] = 1;
                 break;
             case 'e':
-                p1->userinput  = 0xe;
+                p1->userinput[14]  = 1;
                 break;
             case 'f':
-                p1->userinput  = 0xf;
+                p1->userinput[15]  = 1;
+                break;
+            case 'q':
+                // q key calls quits
+                quit_flag = 1;
                 break;
             default :
-                p1->userinput = 0xff;
+                // memset(p1->userinput,0,sizeof(uint8_t)*17);
                 break;
         }
         wmove(win, 34, 5);
         waddch(win,(char)ch);
         wmove(win,1,1);
         wrefresh(win);
-
-        flushinp();
 
         if(p1->delayFlag == 1) 
         {
@@ -548,12 +548,21 @@ int main(int argc, char *argv[]) {
             {
                 for(uint8_t x = 0; x < 8 && x + xPixel < DISPLAY_RESOLUTION_HORIZONTAL ; x++)
                 {
-                    if(p1->displayGrid[xPixel + x][yPixel + y] == (0x1 & ( p1->memory[i_temp + (2*y)] >> (7 - x))) && p1->registers[0xf] == 0)
+                    /* if(p1->displayGrid[xPixel + x][yPixel + y] == (0x1 & ( p1->memory[i_temp + (2*y)] >> (7 - x))) && p1->registers[0xf] == 0)
                     {
                         // Check to see if a pixel will flip
                         p1->registers[0xf] = 1;
                     }
                     p1->displayGrid[xPixel + x][yPixel + y] = p1->displayGrid[xPixel + x][yPixel + y] ^ (0x1 & ( p1->memory[i_temp + (2*y)] >> (7 - x)));
+                    */
+                    if((p1->memory[i_temp + y] & (0x80 >> x)) != 0)
+                    {
+                        if(p1->displayGrid[xPixel + x][yPixel + y] == 1)
+                        {
+                            p1->registers[0xf] = 1;
+                        }
+                        p1->displayGrid[xPixel + x][yPixel + y] ^=1;
+                    }
                 }
             }
             draw_display( p1,  win);
@@ -563,7 +572,7 @@ int main(int argc, char *argv[]) {
             if(opcode_lower_half == 0x9e) 
             {
                 // Skip if Vx == key()
-                if(p1->registers[opcode_Vx] == p1->userinput ) 
+                if(1== p1->userinput[p1->registers[opcode_Vx]] ) 
                 {
                     p1->programCounter += 2;
                 }
@@ -571,7 +580,7 @@ int main(int argc, char *argv[]) {
             else if(opcode_lower_half == 0xa1)
             {
                 // Skip if Vx != Key()
-                if(p1->registers[opcode_Vx] != p1->userinput) 
+                if(1!= p1->userinput[p1->registers[opcode_Vx]]) 
                 {
                     p1->programCounter += 2;
                 }
@@ -591,7 +600,7 @@ int main(int argc, char *argv[]) {
                 // Get key press and store it in Vx, stop program until valid key is press
                 // Input is in hex
                 int valid_character = 0;
-                timeout(-1);
+                nodelay(win, FALSE);
                 
                 while(valid_character == 0) 
                 {
@@ -667,8 +676,8 @@ int main(int argc, char *argv[]) {
                             break;
                     }
                 }
-                keypad(stdscr, TRUE);
-                p1->userinput = p1->registers[opcode_Vx];
+                nodelay(stdscr, TRUE);
+                p1->userinput[ p1->registers[opcode_Vx]] = 1;
             }
             else if(opcode_lower_half == 0x15) 
             {
@@ -706,9 +715,9 @@ int main(int argc, char *argv[]) {
             else if(opcode_lower_half == 0x29) {
                 // load sprite to Iregister
                 //Register are 8 bit, we only want the last 4bit (hex) to represent the number being loaded
-                uint16_t sprite_Location = (p1->registers[opcode_Vx] & 0xf) * 10;
+                uint16_t sprite_Location = (p1->registers[opcode_Vx] & 0xf) * 5;
 
-                for(uint8_t i = 0; i < 10; i++) {
+                for(uint8_t i = 0; i < 5; i++) {
                     p1->memory[p1->addressRegister + i] = p1->memory[sprite_Location + i];
                 }
                 
@@ -749,6 +758,15 @@ int main(int argc, char *argv[]) {
 
         // Increment programer
         p1->programCounter += 2;
+
+        if(kbhit()) 
+        {
+            for(int i = 0; i < 17; i++)
+            {
+                // Clear keyboard
+                p1->userinput[i] = 0;
+            }
+        }
     }
 
     close_program(p1, randomData);
@@ -767,7 +785,8 @@ chip8processor* init_chip8(void) {
     p1->delayFlag = 0;
     p1->soundTimer = 0x0;
     p1->soundFlag = 0;
-    p1->userinput = 0x0;
+    // p1->userinput = 0x0;
+    memset(p1->userinput,0,sizeof(uint8_t)*17);
     p1->userinput_flag = 0;
     p1->programCounter = 0x200;
     p1->stackPointer = 0xea0;
@@ -785,115 +804,115 @@ chip8processor* init_chip8(void) {
     // Load Font sprites into chip8
     // Load 0x0 sprites
     p1->memory[0x000] = 0xf;
+    p1->memory[0x001] = 0x9;
     p1->memory[0x002] = 0x9;
-    p1->memory[0x0004] = 0x9;
-    p1->memory[0x0006] = 0x9;
-    p1->memory[0x0008] = 0xF;
+    p1->memory[0x003] = 0x9;
+    p1->memory[0x004] = 0xF;
 
     // Load 0x1 sprite
-    p1->memory[0x00a] = 0x2;
-    p1->memory[0x00c] = 0x6;
-    p1->memory[0x00e] = 0x2;
-    p1->memory[0x010] = 0x2;
-    p1->memory[0x012] = 0x7;
+    p1->memory[0x005] = 0x2;
+    p1->memory[0x006] = 0x6;
+    p1->memory[0x007] = 0x2;
+    p1->memory[0x008] = 0x2;
+    p1->memory[0x009] = 0x7;
 
     // Load 0x2 sprite
-    p1->memory[0x014] = 0xf;
-    p1->memory[0x016] = 0x1;
-    p1->memory[0x018] = 0xf;
-    p1->memory[0x01a] = 0x8;
-    p1->memory[0x01c] = 0xf;
+    p1->memory[0x00a] = 0xf;
+    p1->memory[0x00b] = 0x1;
+    p1->memory[0x00c] = 0xf;
+    p1->memory[0x00d] = 0x8;
+    p1->memory[0x00e] = 0xf;
 
     // Load 0x3 sprite
-    p1->memory[0x01e] = 0xf;
-    p1->memory[0x020] = 0x1;
-    p1->memory[0x022] = 0xf;
-    p1->memory[0x024] = 0x1;
-    p1->memory[0x026] = 0xf;
+    p1->memory[0x00f] = 0xf;
+    p1->memory[0x010] = 0x1;
+    p1->memory[0x011] = 0xf;
+    p1->memory[0x012] = 0x1;
+    p1->memory[0x013] = 0xf;
 
     // Load 0x4 sprite
-    p1->memory[0x028] = 0x9;
-    p1->memory[0x02a] = 0x9;
-    p1->memory[0x02c] = 0xf;
-    p1->memory[0x02e] = 0x1;
-    p1->memory[0x030] = 0x1;
+    p1->memory[0x014] = 0x9;
+    p1->memory[0x015] = 0x9;
+    p1->memory[0x016] = 0xf;
+    p1->memory[0x017] = 0x1;
+    p1->memory[0x018] = 0x1;
 
     // Load 5 sprite
-    p1->memory[0x032] = 0xf;
-    p1->memory[0x034] = 0x8;
-    p1->memory[0x036] = 0xf;
-    p1->memory[0x038] = 0x1;
-    p1->memory[0x03a] = 0xf;
+    p1->memory[0x019] = 0xf;
+    p1->memory[0x01a] = 0x8;
+    p1->memory[0x01b] = 0xf;
+    p1->memory[0x01c] = 0x1;
+    p1->memory[0x01d] = 0xf;
 
     // Load 0x6 sprite
-    p1->memory[0x03c] = 0xf;
-    p1->memory[0x03e] = 0x8;
-    p1->memory[0x040] = 0xf;
-    p1->memory[0x042] = 0x9;
-    p1->memory[0x044] = 0xf;
+    p1->memory[0x01e] = 0xf;
+    p1->memory[0x01f] = 0x8;
+    p1->memory[0x020] = 0xf;
+    p1->memory[0x021] = 0x9;
+    p1->memory[0x022] = 0xf;
 
     // Load 0x7 sprite
-    p1->memory[0x046] = 0xf;
-    p1->memory[0x048] = 0x1;
-    p1->memory[0x04a] = 0x2;
-    p1->memory[0x04c] = 0x4;
-    p1->memory[0x04e] = 0x4;
+    p1->memory[0x023] = 0xf;
+    p1->memory[0x024] = 0x1;
+    p1->memory[0x025] = 0x2;
+    p1->memory[0x026] = 0x4;
+    p1->memory[0x027] = 0x4;
 
     // Load 0x8 sprite
-    p1->memory[0x050] = 0xf;
-    p1->memory[0x052] = 0x9;
-    p1->memory[0x054] = 0xf;
-    p1->memory[0x056] = 0x9;
-    p1->memory[0x058] = 0xf;
+    p1->memory[0x028] = 0xf;
+    p1->memory[0x029] = 0x9;
+    p1->memory[0x02a] = 0xf;
+    p1->memory[0x02b] = 0x9;
+    p1->memory[0x02c] = 0xf;
 
     // Load 0x9 sprite
-    p1->memory[0x05a] = 0xf;
-    p1->memory[0x05c] = 0x9;
-    p1->memory[0x05e] = 0xf;
-    p1->memory[0x060] = 0x1;
-    p1->memory[0x062] = 0xf;
+    p1->memory[0x02d] = 0xf;
+    p1->memory[0x02e] = 0x9;
+    p1->memory[0x02f] = 0xf;
+    p1->memory[0x030] = 0x1;
+    p1->memory[0x031] = 0xf;
 
     // Load 0xA sprite
-    p1->memory[0x064] = 0xf;
-    p1->memory[0x066] = 0x9;
-    p1->memory[0x068] = 0xf;
-    p1->memory[0x06a] = 0x9;
-    p1->memory[0x06c] = 0x9;
+    p1->memory[0x032] = 0xf;
+    p1->memory[0x033] = 0x9;
+    p1->memory[0x034] = 0xf;
+    p1->memory[0x035] = 0x9;
+    p1->memory[0x036] = 0x9;
 
     // Load 0xB sprite
-    p1->memory[0x06e] = 0xe;
-    p1->memory[0x070] = 0x9;
-    p1->memory[0x072] = 0xe;
-    p1->memory[0x074] = 0x9;
-    p1->memory[0x076] = 0xe;
+    p1->memory[0x037] = 0xe;
+    p1->memory[0x038] = 0x9;
+    p1->memory[0x039] = 0xe;
+    p1->memory[0x03a] = 0x9;
+    p1->memory[0x03b] = 0xe;
 
     // Load 0xC sprite
-    p1->memory[0x0078] = 0xf;
-    p1->memory[0x007a] = 0x8;
-    p1->memory[0x007c] = 0x8;
-    p1->memory[0x007e] = 0x8;
-    p1->memory[0x0080] = 0xf;
+    p1->memory[0x03c] = 0xf;
+    p1->memory[0x03d] = 0x8;
+    p1->memory[0x03e] = 0x8;
+    p1->memory[0x03f] = 0x8;
+    p1->memory[0x040] = 0xf;
 
     // Load 0xD sprite
-    p1->memory[0x082] = 0xe;
-    p1->memory[0x084] = 0x9;
-    p1->memory[0x086] = 0x9;
-    p1->memory[0x088] = 0x9;
-    p1->memory[0x08a] = 0xe;
+    p1->memory[0x041] = 0xe;
+    p1->memory[0x042] = 0x9;
+    p1->memory[0x043] = 0x9;
+    p1->memory[0x044] = 0x9;
+    p1->memory[0x045] = 0xe;
 
     // Load 0xE sprite
-    p1->memory[0x08c] = 0xf;
-    p1->memory[0x08e] = 0x8;
-    p1->memory[0x090] = 0xf;
-    p1->memory[0x092] = 0x8;
-    p1->memory[0x094] = 0xf;
+    p1->memory[0x046] = 0xf;
+    p1->memory[0x047] = 0x8;
+    p1->memory[0x048] = 0xf;
+    p1->memory[0x049] = 0x8;
+    p1->memory[0x04a] = 0xf;
 
     // Load 0xF sprite
-    p1->memory[0x096] = 0xf;
-    p1->memory[0x098] = 0x8;
-    p1->memory[0x09a] = 0xf;
-    p1->memory[0x09c] = 0x8;
-    p1->memory[0x09e] = 0x8;
+    p1->memory[0x04b] = 0xf;
+    p1->memory[0x04c] = 0x8;
+    p1->memory[0x04d] = 0xf;
+    p1->memory[0x04e] = 0x8;
+    p1->memory[0x04f] = 0x8;
     return p1;
 }
 
@@ -933,8 +952,12 @@ void debug_chip8_state(chip8processor* p1, FILE* debug_File) {
        n = sprintf(str,"Stack %X = %#02X %02X\n", cnt,p1->memory[cnt], p1->memory[cnt +1]);
        fwrite(str,1,n,debug_File);
     }
-    n = sprintf(str,"user input = %x\n", p1->userinput);
-    fwrite(str,1,n,debug_File);
+    for(int i = 0; i < 17; i++) 
+    {
+        n = sprintf(str,"user input%d = %d\n",i, p1->userinput[i]);
+        fwrite(str,1,n,debug_File);
+    }
+    
     n = sprintf(str,"user flag = %d\n", p1->userinput_flag);
     fwrite(str,1,n,debug_File);
     n = sprintf(str,"\n");
@@ -981,38 +1004,14 @@ void draw_display(chip8processor* p1, WINDOW * win) {
     wrefresh(win);
 }
 
-int kbhit()
+int kbhit(void)
 {
-    struct timeval tv;
-    fd_set fds;
-    tv.tv_sec = 0;
-    tv.tv_usec = 0;
-    FD_ZERO(&fds);
-    FD_SET(STDIN_FILENO, &fds); //STDIN_FILENO is 0
-    select(STDIN_FILENO+1, &fds, NULL, NULL, &tv);
-    return FD_ISSET(STDIN_FILENO, &fds);
-}
+    int ch = getch();
 
-void nonblock(int state)
-{
-    struct termios ttystate;
-
-    //get the terminal state
-    tcgetattr(STDIN_FILENO, &ttystate);
-
-    if (state==1)
-    {
-        //turn off canonical mode
-        ttystate.c_lflag &= ~ICANON;
-        //minimum of number input read.
-        ttystate.c_cc[VMIN] = 1;
+    if (ch != ERR) {
+        ungetch(ch);
+        return 1;
+    } else {
+        return 0;
     }
-    else if (state==0)
-    {
-        //turn on canonical mode
-        ttystate.c_lflag |= ICANON;
-    }
-    //set the terminal attributes.
-    tcsetattr(STDIN_FILENO, TCSANOW, &ttystate);
-
 }
