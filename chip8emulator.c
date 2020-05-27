@@ -7,14 +7,16 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>    //for sleep function testing
-#include <ncurses.h>
 #include <SDL2/SDL.h>
 
 #define DISPLAY_RESOLUTION_HORIZONTAL 64
+#define SDL_SCREEN_X 640
 #define DISPLAY_RESOLUTION_VERTICAL 32
+#define SDL_SCREEN_Y 320
 #define OPCODE_SIZE_INBYTES 2
 #define CHIP8_MEMORY_LIMIT 4096
 #define CHIP8_STACK_SIZE 12
+#define CHIP8_PERIOD 17;
 
 typedef struct chip8processor { 
     uint8_t memory[CHIP8_MEMORY_LIMIT]; 
@@ -25,14 +27,14 @@ typedef struct chip8processor {
     uint8_t delayFlag;                          //If 1, active delay 
     uint8_t soundTimer;
     uint8_t soundFlag;                          //If 1, active sound 
-    uint8_t userinput[17];                    //saves the last user input
-    uint8_t userinput_flag;                     //if 0, no key have ever been pressed
+    uint8_t userinput[16];                    //saves the last user input
     uint16_t programCounter;
     uint16_t stackPointer;
     uint16_t addressRegister;
     double time_spent_sound;                    
     double time_spent_delay;
     uint8_t displayGrid[DISPLAY_RESOLUTION_HORIZONTAL][DISPLAY_RESOLUTION_VERTICAL];  //Hold display
+    int quit_flag;
 } chip8processor;   
 
 chip8processor* init_chip8(void);
@@ -40,8 +42,7 @@ void destory_chip(chip8processor* pi);
 void debug_chip8_state(chip8processor* p1, FILE* debug_File) ;
 void view_program_memory(chip8processor* p1, FILE* debug_File) ;
 void close_program(chip8processor* pi , int randomData);
-void draw_display(chip8processor* p1, WINDOW * win);
-int kbhit(void);
+void draw_display(chip8processor* p1, SDL_Renderer* renderer ); 
 
 int main(int argc, char *argv[]) {
     //Check too she if a filename was given
@@ -52,13 +53,8 @@ int main(int argc, char *argv[]) {
 
     //Variables used
     FILE *programFile;
-    char ch = 0;
-    // long int fileSize;
     unsigned char * buffer = (unsigned char*) malloc (sizeof(char)*OPCODE_SIZE_INBYTES); //stores op code
     uint8_t randbits = 0;                                                         //Stores Ranbit from /dev/urandom
-    clock_t time_begin = clock(), time_end = 0;                                       //Used to generate time delay
-    double period_clock = 17;                                                 //Clock period is 16 milliseconds
-    int quit_flag = 0;
 
     //Open file from arg
     programFile = fopen(argv[1], "r");
@@ -71,12 +67,6 @@ int main(int argc, char *argv[]) {
 
     //Create a chip8 processor 
     chip8processor* p1 = init_chip8();
-
-    //start ncurses
-	initscr();			        // Start curses mode 		
-	keypad(stdscr, TRUE);		// Capture special key such f1 etc. 
-    noecho();                   // Supress echo
-    refresh();
 
     #ifdef DEBUG
         // If debug is declared, write to debug.log
@@ -131,16 +121,15 @@ int main(int argc, char *argv[]) {
         view_program_memory(p1, debug_File);
     #endif
 
-    // Create ncurse UI for chip8
-    WINDOW * win = newwin(DISPLAY_RESOLUTION_VERTICAL + 4, DISPLAY_RESOLUTION_HORIZONTAL + 2, 0, 0);
-    cbreak();			        // Line buffering disabled
-    // nodelay(stdscr, TRUE);
-    box(win, 0 , 0);
-    wrefresh(win);
-    wmove(win, 1, 1);
+    // Setup 
+    SDL_Init(SDL_INIT_EVERYTHING);
+    SDL_Window *screen = SDL_CreateWindow("Chip-8",  SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            640, 320, SDL_WINDOW_OPENGL);
+    SDL_Renderer *renderer = SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Event sdl_events;
 
     // Main loop
-    while(quit_flag == 0)
+    while(p1->quit_flag == 0)
     {
         #ifdef DEBUG
             // If debug, print out chip state to debug.log
@@ -163,98 +152,77 @@ int main(int argc, char *argv[]) {
         opcode_NNN =  opcode_NNN | p1->memory[p1->programCounter + 1];
 
         // 60hz timer for chip
-        time_end = clock();
-        p1->time_spent_delay = difftime(time_end , time_begin);    // Return a time in seconds
-        p1->time_spent_delay /= 1000; // Convert seconds to milli seconds
-        time_begin = time_end;
-        double elapsed_time = period_clock - p1->time_spent_delay;
-        if (elapsed_time > 0) {
-            usleep(elapsed_time);
-        }
-
-        nodelay(stdscr, TRUE);
-
-        if(kbhit())
-        {
-            ch = getch();   //Get keybaord input
-            while(ch != ERR)
-            {
-                switch(ch) 
-                {
-                    case '0':
-                        p1->userinput[0] = 1;
-                        break;
-                    case '1':
-                        p1->userinput[1]  = 1;
-                        break;
-                    case '2':
-                        p1->userinput[2]  = 1;
-                        break;
-                    case '3':
-                        p1->userinput[3]  = 1;
-                        break;
-                    case '4':
-                        p1->userinput[4]  = 1;
-                        break;
-                    case '5':
-                        p1->userinput[5]  = 1;
-                        break;
-                    case '6':
-                        p1->userinput[6]  = 1;
-                        break;
-                    case '7':
-                        p1->userinput[7]  = 1;
-                        break;
-                    case '8':
-                        p1->userinput[8]  = 1;
-                        break;
-                    case '9':
-                        p1->userinput[9]  = 1;
-                        break;
-                    case 'a':
-                        p1->userinput[10]  = 1;
-                        break;
-                    case 'b':
-                        p1->userinput[11]  = 1;
-                        break;
-                    case 'c':
-                        p1->userinput[12]  = 1;
-                        break;
-                    case 'd':
-                        p1->userinput [13] = 1;
-                        break;
-                    case 'e':
-                        p1->userinput[14]  = 1;
-                        break;
-                    case 'f':
-                        p1->userinput[15]  = 1;
-                        break;
-                    case 'q':
-                        // q key calls quits
-                        quit_flag = 1;
-                        break;
-                    default :
-                        // memset(p1->userinput,0,sizeof(uint8_t)*17);
-                        break;
-                }
-                ch = getch();
-            }
-            wmove(win, 34, 5);
-            waddch(win,(char)ch);
-            wmove(win,1,1);
-            wrefresh(win);
-        }
-        else 
-        {
-           
-        }
+        
+        
+            SDL_Delay(1);
         
 
-        wmove(win, 34, 5);
-        waddch(win,(char)ch);
-        wmove(win,1,1);
-        wrefresh(win);
-
+        /* while( SDL_PollEvent( &sdl_events ) != 0 )
+        {
+            //User requests quit
+            if( sdl_events.type == SDL_QUIT )
+            {
+                quit_flag = 1;
+            }
+            //User presses a key
+            else if( sdl_events.type == SDL_KEYDOWN )
+            {
+                //Select surfaces based on key press
+                switch( sdl_events.key.keysym.sym )
+                {
+                    case SDLK_0:
+                        p1->userinput = 0x0;
+                        break;
+                    case SDLK_1:
+                        p1->userinput = 0x1;
+                        break;
+                    case SDLK_2:
+                        p1->userinput = 0x2;
+                        break;
+                    case SDLK_3:
+                        p1->userinput = 0x3;
+                        break;
+                    case SDLK_4:
+                        p1->userinput = 0x4;
+                        break;
+                    case SDLK_5:
+                        p1->userinput = 0x5;
+                        break;
+                    case SDLK_6:
+                        p1->userinput = 0x6;
+                        break;
+                    case SDLK_7:
+                        p1->userinput = 0x7;
+                        break;
+                    case SDLK_8:
+                        p1->userinput = 0x8;
+                        break;
+                    case SDLK_9:
+                        p1->userinput = 0x9;
+                        break;
+                    case SDLK_a:
+                        p1->userinput = 0xa;
+                        break;
+                    case SDLK_b:
+                        p1->userinput = 0xb;
+                        break;
+                    case SDLK_c:
+                        p1->userinput = 0xc;
+                        break;
+                    case SDLK_d:
+                        p1->userinput = 0xd;
+                        break;
+                    case SDLK_e:
+                        p1->userinput = 0xe;
+                        break;
+                    case SDLK_f:
+                        p1->userinput = 0xf;
+                        break;
+                }
+            }
+        }*/
+                            
+        
         if(p1->delayFlag == 1) 
         {
             // If there was a delay trigger, loop until delay timer decrements to 0
@@ -269,7 +237,6 @@ int main(int argc, char *argv[]) {
         // If sound was called, keep playing buzz until timer ends
         if(p1->soundFlag == 1)
         {
-            beep();
             p1->soundTimer -= 1;
             if(p1->soundTimer == 0)
             {
@@ -291,10 +258,7 @@ int main(int argc, char *argv[]) {
                         p1->displayGrid[x][y] = 0;
                     }
                 }
-                werase(win);
-                box(win, 0 , 0);
-                wmove(win, 1, 1);
-                wrefresh(win);
+                draw_display( p1,  renderer );
             }
             else if (opcode_upper_half == 0x00 && 
                 opcode_lower_half == 0xee)
@@ -576,14 +540,81 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
-            draw_display( p1,  win);
+            draw_display(p1, renderer );
         }
         else if (opcode_most_significant_bit == 0xe) 
         {
+            while( SDL_PollEvent( &sdl_events ) != 0 )
+            {
+                //User requests quit
+                if( sdl_events.type == SDL_QUIT )
+                {
+                    p1->quit_flag = 1;
+                }
+                //User presses a key
+                else if( sdl_events.type == SDL_KEYDOWN )
+                {
+                    //Select surfaces based on key press
+                    switch( sdl_events.key.keysym.sym )
+                    {
+                        case SDLK_0:
+                            p1->userinput[0] = 1;
+                            break;
+                        case SDLK_1:
+                            p1->userinput[1] = 1;
+                            break;
+                        case SDLK_2:
+                            p1->userinput[2] = 1;
+                            break;
+                        case SDLK_3:
+                            p1->userinput[3] = 1;
+                            break;
+                        case SDLK_4:
+                            p1->userinput[4] = 1;
+                            break;
+                        case SDLK_5:
+                            p1->userinput[5] = 1;
+                            break;
+                        case SDLK_6:
+                            p1->userinput[6] = 1;
+                            break;
+                        case SDLK_7:
+                            p1->userinput[7] = 1;
+                            break;
+                        case SDLK_8:
+                            p1->userinput[8] = 1;
+                            break;
+                        case SDLK_9:
+                            p1->userinput[9] = 1;
+                            break;
+                        case SDLK_a:
+                            p1->userinput[10] = 1;
+                            break;
+                        case SDLK_b:
+                            p1->userinput[11] = 1;
+                            break;
+                        case SDLK_c:
+                            p1->userinput[12] = 1;
+                            break;
+                        case SDLK_d:
+                            p1->userinput[13] = 1;
+                            break;
+                        case SDLK_e:
+                            p1->userinput[14] = 1;
+                            break;
+                        case SDLK_f:
+                            p1->userinput[15] = 1;
+                            break;
+                        case SDLK_q:
+                            p1->quit_flag = 1;
+                    }
+                }
+            }
+
             if(opcode_lower_half == 0x9e) 
             {
                 // Skip if Vx == key()
-                if(1== p1->userinput[p1->registers[opcode_Vx]] ) 
+                if(1 == p1->userinput[p1->registers[opcode_Vx]] ) 
                 {
                     p1->programCounter += 2;
                 }
@@ -591,12 +622,12 @@ int main(int argc, char *argv[]) {
             else if(opcode_lower_half == 0xa1)
             {
                 // Skip if Vx != Key()
-                if(1!= p1->userinput[p1->registers[opcode_Vx]]) 
+                if(1 != p1->userinput[p1->registers[opcode_Vx]]) 
                 {
                     p1->programCounter += 2;
                 }
             }
-            
+            memset(p1->userinput,0,sizeof(uint8_t)*16);
         }
         else if (opcode_most_significant_bit == 0xf) 
         {
@@ -608,92 +639,94 @@ int main(int argc, char *argv[]) {
             }
             else if(opcode_lower_half == 0x0a) 
             {
-                // Get key press and store it in Vx, stop program until valid key is press
-                // Input is in hex
-                int valid_character = 0;
-                nodelay(win, FALSE);
-                
-                while(valid_character == 0) 
+                int valid_input_flag = 0;
+                while (valid_input_flag == 0) 
                 {
-                    ch = getch();   //Get keybaord input
-
-                    switch(ch) 
+                    while( SDL_PollEvent( &sdl_events ) != 0 )
                     {
-                        case '0':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx] = 0x0;
-                            break;
-                        case '1':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0x1;
-                            break;
-                        case '2':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0x2;
-                            break;
-                        case '3':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0x3;
-                            break;
-                        case '4':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0x4;
-                            break;
-                        case '5':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0x5;
-                            break;
-                        case '6':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0x6;
-                            break;
-                        case '7':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0x7;
-                            break;
-                        case '8':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0x8;
-                            break;
-                        case '9':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0x9;
-                            break;
-                        case 'a':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0xa;
-                            break;
-                        case 'b':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0xb;
-                            break;
-                        case 'c':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0xc;
-                            break;
-                        case 'd':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0xd;
-                            break;
-                        case 'e':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0xe;
-                            break;
-                        case 'f':
-                            valid_character = 1;
-                            p1->registers[opcode_Vx]  = 0xf;
-                            break;
-                        default :
-                            break;
+                        //User requests quit
+                        if( sdl_events.type == SDL_QUIT )
+                        {
+                            p1->quit_flag = 1;
+                        }
+                        //User presses a key
+                        else if( sdl_events.type == SDL_KEYDOWN )
+                        {
+                            //Select surfaces based on key press
+                            switch( sdl_events.key.keysym.sym )
+                            {
+                                case SDLK_0:
+                                    p1->registers[opcode_Vx] = 0x0;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_1:
+                                    p1->registers[opcode_Vx] = 0x1;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_2:
+                                    p1->registers[opcode_Vx] = 0x2;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_3:
+                                    p1->registers[opcode_Vx] = 0x3;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_4:
+                                    p1->registers[opcode_Vx] = 0x4;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_5:
+                                    p1->registers[opcode_Vx] = 0x5;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_6:
+                                    p1->registers[opcode_Vx] = 0x6;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_7:
+                                    p1->registers[opcode_Vx] = 0x7;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_8:
+                                    p1->registers[opcode_Vx] = 0x8;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_9:
+                                    p1->registers[opcode_Vx] = 0x9;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_a:
+                                    p1->registers[opcode_Vx] = 0xa;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_b:
+                                    p1->registers[opcode_Vx] = 0xb;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_c:
+                                    p1->registers[opcode_Vx] = 0xc;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_d:
+                                    p1->registers[opcode_Vx] = 0xd;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_e:
+                                    p1->registers[opcode_Vx] = 0xe;
+                                    valid_input_flag = 1;
+                                    break;
+                                case SDLK_f:
+                                    p1->registers[opcode_Vx] = 0xf;
+                                    valid_input_flag = 1;
+                                    break;
+                            }
+                        }
                     }
                 }
-                nodelay(stdscr, TRUE);
-                p1->userinput[ p1->registers[opcode_Vx]] = 1;
             }
             else if(opcode_lower_half == 0x15) 
             {
                 // Set a delay based on the value of Vx
-                time_begin = clock();
                 p1->delayFlag = 1;
                 p1->delayTimer = p1->registers[opcode_Vx];
                 p1->time_spent_delay = 0;
@@ -703,7 +736,6 @@ int main(int argc, char *argv[]) {
             {
                 // Set a sound to be played after a set amount of time
                 // Value to be delay is Vx
-                time_begin = clock();
                 p1->soundFlag = 1;
                 p1->soundTimer = p1->registers[opcode_Vx];
                 p1->time_spent_sound = 0;
@@ -773,6 +805,8 @@ int main(int argc, char *argv[]) {
     }
 
     close_program(p1, randomData);
+    SDL_DestroyWindow( screen );
+    screen = NULL;
     return 1;
 }
 
@@ -788,14 +822,13 @@ chip8processor* init_chip8(void) {
     p1->delayFlag = 0;
     p1->soundTimer = 0x0;
     p1->soundFlag = 0;
-    // p1->userinput = 0x0;
-    memset(p1->userinput,0,sizeof(uint8_t)*17);
-    p1->userinput_flag = 0;
+    memset(p1->userinput,0,sizeof(uint8_t)*16);
     p1->programCounter = 0x200;
     p1->stackPointer = 0xea0;
-    p1->addressRegister = 0x0;
+    p1->addressRegister = 0x200;
     p1->time_spent_sound = 0.0;
     p1->time_spent_delay = 0.0;
+    p1->quit_flag = 0;
     for(int x = 0; x < DISPLAY_RESOLUTION_HORIZONTAL; x ++)
     {
         for(int y = 0; y < DISPLAY_RESOLUTION_VERTICAL; y ++)
@@ -955,14 +988,12 @@ void debug_chip8_state(chip8processor* p1, FILE* debug_File) {
        n = sprintf(str,"Stack %X = %#02X %02X\n", cnt,p1->memory[cnt], p1->memory[cnt +1]);
        fwrite(str,1,n,debug_File);
     }
-    for(int i = 0; i < 17; i++) 
-    {
-        n = sprintf(str,"user input%d = %d\n",i, p1->userinput[i]);
-        fwrite(str,1,n,debug_File);
-    }
-    
-    n = sprintf(str,"user flag = %d\n", p1->userinput_flag);
+
+    n = sprintf(str,"user input%d = %x\n", p1->userinput);
     fwrite(str,1,n,debug_File);
+    // n = sprintf(str,"user flag = %d\n", p1->userinput_flag);
+    // fwrite(str,1,n,debug_File);
+    // REWRITE THIS, USING KEYBOARD STATE INSTEAD
     n = sprintf(str,"\n");
     fwrite(str,1,n,debug_File);
 }
@@ -981,43 +1012,28 @@ void view_program_memory(chip8processor* p1, FILE* debug_File) {
 void close_program(chip8processor* p1 , int randomData) {
     close(randomData);
     destory_chip(p1);
-    endwin();
 }
 
-void draw_display(chip8processor* p1, WINDOW * win) {
-    werase(win);
-    box(win, 0 , 0);
-    wmove(win, 1, 1);
-    int y_axis = 1;
+void draw_display(chip8processor* p1, SDL_Renderer* renderer ) 
+{
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
     for(int y = 0; y < DISPLAY_RESOLUTION_VERTICAL; y++) 
     {
         for(int x = 0; x < DISPLAY_RESOLUTION_HORIZONTAL; x++) 
         {
             if(p1->displayGrid[x][y]  == 1)
             {
-                waddch(win,'#');
-            }
-            else {
-                waddch(win,' ');
+                SDL_Rect dstrect;
+                dstrect.x = x * 10;
+                dstrect.y = y * 10;
+                dstrect.w = 10;
+                dstrect.h = 10;
+
+                SDL_RenderFillRect(renderer, &dstrect);
             }
         }
-        y_axis += 1;
-        wmove(win, y_axis, 1);
     }
-    wrefresh(win);
-}
-
-int kbhit(void)
-{
-    int ch = getch();
-
-    if (ch != ERR) 
-    {
-        ungetch(ch);
-        return 1;
-    } 
-    else 
-    {
-        return 0;
-    }
+    SDL_RenderPresent(renderer);
 }
