@@ -10,9 +10,8 @@
 #include <SDL2/SDL.h>
 
 #define DISPLAY_RESOLUTION_HORIZONTAL 64
-#define SDL_SCREEN_X 640
+#define SDL_SCREEN_SCALE 17
 #define DISPLAY_RESOLUTION_VERTICAL 32
-#define SDL_SCREEN_Y 320
 #define OPCODE_SIZE_INBYTES 2
 #define CHIP8_MEMORY_LIMIT 4096
 #define CHIP8_STACK_SIZE 12
@@ -123,8 +122,12 @@ int main(int argc, char *argv[]) {
 
     // Setup 
     SDL_Init(SDL_INIT_EVERYTHING);
-    SDL_Window *screen = SDL_CreateWindow("Chip-8",  SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-            640, 320, SDL_WINDOW_OPENGL);
+    SDL_Window *screen = SDL_CreateWindow("Chip-8",  
+        SDL_WINDOWPOS_CENTERED, 
+        SDL_WINDOWPOS_CENTERED,
+        DISPLAY_RESOLUTION_HORIZONTAL * SDL_SCREEN_SCALE, 
+        DISPLAY_RESOLUTION_VERTICAL * SDL_SCREEN_SCALE, 
+        SDL_WINDOW_OPENGL);
     SDL_Renderer *renderer = SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED);
     SDL_Event sdl_events;
 
@@ -135,6 +138,15 @@ int main(int argc, char *argv[]) {
             // If debug, print out chip state to debug.log
             debug_chip8_state(p1, debug_File);
         #endif
+
+        while( SDL_PollEvent( &sdl_events ) != 0 )
+        {
+            //User requests quit
+            if( sdl_events.type == SDL_QUIT )
+            {
+                p1->quit_flag = 1;
+            }
+        }
 
         // Parse current opcode
         uint8_t opcode_NN = p1->memory[p1->programCounter + 1];
@@ -544,6 +556,8 @@ int main(int argc, char *argv[]) {
         }
         else if (opcode_most_significant_bit == 0xe) 
         {
+            SDL_PumpEvents();
+            uint8_t *keysArray = SDL_GetKeyboardState(NULL);
             while( SDL_PollEvent( &sdl_events ) != 0 )
             {
                 //User requests quit
@@ -551,65 +565,24 @@ int main(int argc, char *argv[]) {
                 {
                     p1->quit_flag = 1;
                 }
-                //User presses a key
-                else if( sdl_events.type == SDL_KEYDOWN )
-                {
-                    //Select surfaces based on key press
-                    switch( sdl_events.key.keysym.sym )
-                    {
-                        case SDLK_0:
-                            p1->userinput[0] = 1;
-                            break;
-                        case SDLK_1:
-                            p1->userinput[1] = 1;
-                            break;
-                        case SDLK_2:
-                            p1->userinput[2] = 1;
-                            break;
-                        case SDLK_3:
-                            p1->userinput[3] = 1;
-                            break;
-                        case SDLK_4:
-                            p1->userinput[4] = 1;
-                            break;
-                        case SDLK_5:
-                            p1->userinput[5] = 1;
-                            break;
-                        case SDLK_6:
-                            p1->userinput[6] = 1;
-                            break;
-                        case SDLK_7:
-                            p1->userinput[7] = 1;
-                            break;
-                        case SDLK_8:
-                            p1->userinput[8] = 1;
-                            break;
-                        case SDLK_9:
-                            p1->userinput[9] = 1;
-                            break;
-                        case SDLK_a:
-                            p1->userinput[10] = 1;
-                            break;
-                        case SDLK_b:
-                            p1->userinput[11] = 1;
-                            break;
-                        case SDLK_c:
-                            p1->userinput[12] = 1;
-                            break;
-                        case SDLK_d:
-                            p1->userinput[13] = 1;
-                            break;
-                        case SDLK_e:
-                            p1->userinput[14] = 1;
-                            break;
-                        case SDLK_f:
-                            p1->userinput[15] = 1;
-                            break;
-                        case SDLK_q:
-                            p1->quit_flag = 1;
-                    }
-                }
             }
+            if (keysArray[SDL_SCANCODE_0]) p1->userinput[0] = 1;
+            if (keysArray[SDL_SCANCODE_1]) p1->userinput[1] = 1;
+            if (keysArray[SDL_SCANCODE_2]) p1->userinput[2] = 1;
+            if (keysArray[SDL_SCANCODE_3]) p1->userinput[3] = 1;
+            if (keysArray[SDL_SCANCODE_4]) p1->userinput[4] = 1;
+            if (keysArray[SDL_SCANCODE_5]) p1->userinput[5] = 1;
+            if (keysArray[SDL_SCANCODE_6]) p1->userinput[6] = 1;
+            if (keysArray[SDL_SCANCODE_7]) p1->userinput[7] = 1;
+            if (keysArray[SDL_SCANCODE_8]) p1->userinput[8] = 1;
+            if (keysArray[SDL_SCANCODE_9]) p1->userinput[9] = 1;
+            if (keysArray[SDL_SCANCODE_A]) p1->userinput[10] = 1;
+            if (keysArray[SDL_SCANCODE_B]) p1->userinput[11] = 1;
+            if (keysArray[SDL_SCANCODE_C]) p1->userinput[12] = 1;
+            if (keysArray[SDL_SCANCODE_D]) p1->userinput[13] = 1;
+            if (keysArray[SDL_SCANCODE_E]) p1->userinput[14] = 1;
+            if (keysArray[SDL_SCANCODE_F]) p1->userinput[15] = 1;
+            if (keysArray[SDL_SCANCODE_Q]) p1->quit_flag = 1;
 
             if(opcode_lower_half == 0x9e) 
             {
@@ -989,11 +962,12 @@ void debug_chip8_state(chip8processor* p1, FILE* debug_File) {
        fwrite(str,1,n,debug_File);
     }
 
-    n = sprintf(str,"user input%d = %x\n", p1->userinput);
-    fwrite(str,1,n,debug_File);
-    // n = sprintf(str,"user flag = %d\n", p1->userinput_flag);
-    // fwrite(str,1,n,debug_File);
-    // REWRITE THIS, USING KEYBOARD STATE INSTEAD
+    for(int i = 0; i < 16; i += 1)
+    {
+        n = sprintf(str,"user flag[%d] = %d\n",i, p1->userinput[i]);
+        fwrite(str,1,n,debug_File);
+    }
+    
     n = sprintf(str,"\n");
     fwrite(str,1,n,debug_File);
 }
@@ -1026,10 +1000,10 @@ void draw_display(chip8processor* p1, SDL_Renderer* renderer )
             if(p1->displayGrid[x][y]  == 1)
             {
                 SDL_Rect dstrect;
-                dstrect.x = x * 10;
-                dstrect.y = y * 10;
-                dstrect.w = 10;
-                dstrect.h = 10;
+                dstrect.x = x * SDL_SCREEN_SCALE;
+                dstrect.y = y * SDL_SCREEN_SCALE;
+                dstrect.w = SDL_SCREEN_SCALE;
+                dstrect.h = SDL_SCREEN_SCALE;
 
                 SDL_RenderFillRect(renderer, &dstrect);
             }
