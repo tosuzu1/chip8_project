@@ -1,10 +1,4 @@
 #include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>    //for sleep function testing
 #include <SDL2/SDL.h>
@@ -15,7 +9,7 @@
 #define OPCODE_SIZE_INBYTES 2
 #define CHIP8_MEMORY_LIMIT 4096
 #define CHIP8_STACK_SIZE 12
-#define CHIP8_PERIOD 17;
+#define CHIP8_PERIOD 17
 
 typedef struct chip8processor { 
     uint8_t memory[CHIP8_MEMORY_LIMIT]; 
@@ -30,8 +24,10 @@ typedef struct chip8processor {
     uint16_t programCounter;
     uint16_t stackPointer;
     uint16_t addressRegister;
-    double time_spent_sound;                    
-    double time_spent_delay;
+    uint32_t sound_time_begin;
+    uint32_t sound_time_end;
+    uint32_t delay_time_begin;
+    uint32_t delay_time_end;                    
     uint8_t displayGrid[DISPLAY_RESOLUTION_HORIZONTAL][DISPLAY_RESOLUTION_VERTICAL];  //Hold display
     int quit_flag;
 } chip8processor;   
@@ -163,83 +159,19 @@ int main(int argc, char *argv[]) {
         opcode_NNN =  opcode_NNN << 8;
         opcode_NNN =  opcode_NNN | p1->memory[p1->programCounter + 1];
 
-        // 60hz timer for chip
-        
-        
-            SDL_Delay(1);
-        
-
-        /* while( SDL_PollEvent( &sdl_events ) != 0 )
-        {
-            //User requests quit
-            if( sdl_events.type == SDL_QUIT )
-            {
-                quit_flag = 1;
-            }
-            //User presses a key
-            else if( sdl_events.type == SDL_KEYDOWN )
-            {
-                //Select surfaces based on key press
-                switch( sdl_events.key.keysym.sym )
-                {
-                    case SDLK_0:
-                        p1->userinput = 0x0;
-                        break;
-                    case SDLK_1:
-                        p1->userinput = 0x1;
-                        break;
-                    case SDLK_2:
-                        p1->userinput = 0x2;
-                        break;
-                    case SDLK_3:
-                        p1->userinput = 0x3;
-                        break;
-                    case SDLK_4:
-                        p1->userinput = 0x4;
-                        break;
-                    case SDLK_5:
-                        p1->userinput = 0x5;
-                        break;
-                    case SDLK_6:
-                        p1->userinput = 0x6;
-                        break;
-                    case SDLK_7:
-                        p1->userinput = 0x7;
-                        break;
-                    case SDLK_8:
-                        p1->userinput = 0x8;
-                        break;
-                    case SDLK_9:
-                        p1->userinput = 0x9;
-                        break;
-                    case SDLK_a:
-                        p1->userinput = 0xa;
-                        break;
-                    case SDLK_b:
-                        p1->userinput = 0xb;
-                        break;
-                    case SDLK_c:
-                        p1->userinput = 0xc;
-                        break;
-                    case SDLK_d:
-                        p1->userinput = 0xd;
-                        break;
-                    case SDLK_e:
-                        p1->userinput = 0xe;
-                        break;
-                    case SDLK_f:
-                        p1->userinput = 0xf;
-                        break;
-                }
-            }
-        }*/
-                            
+        // Small delay for chip8 to be human runable
+        SDL_Delay(1);
         
         if(p1->delayFlag == 1) 
         {
+            p1->delay_time_end = SDL_GetTicks();
+            if(SDL_TICKS_PASSED(p1->delay_time_end, p1->delay_time_begin + 17))
+            {
+                p1->delayTimer -= 1;
+            }
             // If there was a delay trigger, loop until delay timer decrements to 0
-            p1->delayTimer -= 1;
-            if (p1->delayTimer == 0) {
+            if (p1->delayTimer == 0) 
+            {
                 p1->delayFlag = 0;
                 p1->programCounter += 2;
             }
@@ -249,9 +181,14 @@ int main(int argc, char *argv[]) {
         // If sound was called, keep playing buzz until timer ends
         if(p1->soundFlag == 1)
         {
-            p1->soundTimer -= 1;
-            if(p1->soundTimer == 0)
+            p1->sound_time_end = SDL_GetTicks();
+            if(SDL_TICKS_PASSED(p1->sound_time_end, p1->sound_time_begin + 17))
             {
+                p1->soundTimer -= 1;
+            }
+            if(p1->soundTimer == 0)
+            {  
+                printf("\a");
                 p1->soundFlag = 0;
             }
         }
@@ -557,7 +494,7 @@ int main(int argc, char *argv[]) {
         else if (opcode_most_significant_bit == 0xe) 
         {
             SDL_PumpEvents();
-            uint8_t *keysArray = SDL_GetKeyboardState(NULL);
+            const uint8_t *keysArray = SDL_GetKeyboardState(NULL);
             while( SDL_PollEvent( &sdl_events ) != 0 )
             {
                 //User requests quit
@@ -702,7 +639,7 @@ int main(int argc, char *argv[]) {
                 // Set a delay based on the value of Vx
                 p1->delayFlag = 1;
                 p1->delayTimer = p1->registers[opcode_Vx];
-                p1->time_spent_delay = 0;
+                p1->delay_time_begin = SDL_GetTicks();
                 continue;
             }
             else if(opcode_lower_half == 0x18) 
@@ -711,7 +648,7 @@ int main(int argc, char *argv[]) {
                 // Value to be delay is Vx
                 p1->soundFlag = 1;
                 p1->soundTimer = p1->registers[opcode_Vx];
-                p1->time_spent_sound = 0;
+                p1->sound_time_begin = SDL_GetTicks();
             }
             else if(opcode_lower_half == 0x1e)
             {
@@ -799,8 +736,10 @@ chip8processor* init_chip8(void) {
     p1->programCounter = 0x200;
     p1->stackPointer = 0xea0;
     p1->addressRegister = 0x200;
-    p1->time_spent_sound = 0.0;
-    p1->time_spent_delay = 0.0;
+    p1->delay_time_begin = 0;
+    p1->delay_time_end = 0;
+    p1->sound_time_begin = 0;
+    p1->sound_time_end = 0 ;
     p1->quit_flag = 0;
     for(int x = 0; x < DISPLAY_RESOLUTION_HORIZONTAL; x ++)
     {
@@ -992,7 +931,7 @@ void draw_display(chip8processor* p1, SDL_Renderer* renderer )
 {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
-    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     for(int y = 0; y < DISPLAY_RESOLUTION_VERTICAL; y++) 
     {
         for(int x = 0; x < DISPLAY_RESOLUTION_HORIZONTAL; x++) 
