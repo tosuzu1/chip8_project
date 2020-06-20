@@ -14,7 +14,6 @@
 typedef struct chip8processor { 
     uint8_t memory[CHIP8_MEMORY_LIMIT]; 
     uint8_t registers[16];
-    // uint16_t stack[CHIP8_STACK_SIZE];        //Stack is now inside of memory
     uint16_t stackSize;
     uint8_t delayTimer;
     uint8_t delayFlag;                          //If 1, active delay 
