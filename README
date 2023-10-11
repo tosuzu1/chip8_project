@@ -1,0 +1,3 @@
+run test1, load 
+
+bazel run --run_under="cd $PWD &&" //some:target

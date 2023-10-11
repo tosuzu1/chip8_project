@@ -1,0 +1,19 @@
+Clock.ch8 works but unreadble, it seeems character are upsidedown
+
+Figures.ch8 works
+
+IBMLogo.ch8 works
+
+Keypadtest.ch8 work but unreadble
+
+LunarLander.ch8 partial
+
+maze works
+
+mazeAlt works
+
+Pong doesn't work try to draw out of bounce
+
+SpaceInvader Doesn't work, the files doesn't match ch8 format (opcode don't fit)
+
+Random number works
