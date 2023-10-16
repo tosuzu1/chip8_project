@@ -41,6 +41,10 @@ class Chip8
     uint8_t get_processerInfo();
     void callHello();
     std::map<int, void (Chip8::*)()> funcMap;
+    std::map<int, void (Chip8::*)()> funcMap0;
+    std::map<int, void (Chip8::*)()> funcMap8;
+    std::map<int, void (Chip8::*)()> funcMapE;
+    std::map<int, void (Chip8::*)()> funcMapF;
     void op_FXFF();
     
 
@@ -81,9 +85,13 @@ class Chip8
     void op_FX0A();
     void op_FX15();
     void op_FX18();
+    void op_FX1E();
     void op_FX29();
     void op_FX33();
     void op_FX55();
     void op_FX65();
-
+    void opcode_0();
+    void opcode_8();
+    void opcode_E();
+    void opcode_F();
 };

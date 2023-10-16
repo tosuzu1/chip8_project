@@ -8,6 +8,7 @@
 
 const uint16_t START_ADDRESS {0x200};
 const unsigned int FONTSET_SIZE {80};
+const uint16_t START_FONT_ADRESS {0};
 
 uint8_t fontset[FONTSET_SIZE] =
 	{
@@ -40,14 +41,92 @@ Chip8::Chip8() :
 	// Load fonts into memory 
 	for (unsigned int i = 0; i < FONTSET_SIZE; ++i)
 	{
-		memory[i] = fontset[i];
+		memory[START_FONT_ADRESS + i] = fontset[i];
 	}
 
     random_byte = std::uniform_int_distribution<uint8_t>(0, 255U);
 
     
-    funcMap[1] = &Chip8::op_FXFF;
+    //funcMap[1] = &Chip8::op_FXFF;
+    funcMap[0x0] = &Chip8::opcode_0;
+    funcMap[0x1] = &Chip8::op_1NNN;
+    funcMap[0x2] = &Chip8::op_2NNN;
+    funcMap[0x3] = &Chip8::op_3XNN;
+    funcMap[0x4] = &Chip8::op_4XNN;
+    funcMap[0x5] = &Chip8::op_5XY0;
+    funcMap[0x6] = &Chip8::op_6XNN;
+    funcMap[0x7] = &Chip8::op_7XNN;
+    funcMap[0x8] = &Chip8::opcode_8;
+    funcMap[0x9] = &Chip8::op_9XY0;
+    funcMap[0xA] = &Chip8::op_ANNN;
+    funcMap[0xB] = &Chip8::op_BNNN;
+    funcMap[0xC] = &Chip8::op_CXNN;
+    funcMap[0xD] = &Chip8::op_DXYN;
+    funcMap[0xE] = &Chip8::opcode_E;
+    funcMap[0xF] = &Chip8::opcode_F;
     
+
+    funcMap0[0x0E0] =&Chip8::op_00E0;
+    funcMap0[0x0EE] =&Chip8::op_00EE;
+    funcMap0[0x0] =&Chip8::op_0NNN;
+
+    funcMap8[0x0] = &Chip8::op_8XY0;
+    funcMap8[0x1] = &Chip8::op_8XY1;
+    funcMap8[0x2] = &Chip8::op_8XY2;
+    funcMap8[0x3] = &Chip8::op_8XY3;
+    funcMap8[0x4] = &Chip8::op_8XY4;
+    funcMap8[0x5] = &Chip8::op_8XY5;
+    funcMap8[0x6] = &Chip8::op_8XY6;
+    funcMap8[0x7] = &Chip8::op_8XY7;
+    funcMap8[0xE] = &Chip8::op_8XYE;
+
+    funcMapE[0x9E] = &Chip8::op_EX9E;
+    funcMapE[0x07] = &Chip8::op_EXA1;
+
+    funcMapF[0x07] = &Chip8::op_FX07;
+    funcMapF[0x0A] = &Chip8::op_FX0A;
+    funcMapF[0x15] = &Chip8::op_FX15;
+    funcMapF[0x18] = &Chip8::op_FX18;
+    funcMapF[0x1E] = &Chip8::op_FX1E;
+    funcMapF[0x29] = &Chip8::op_FX29;
+    funcMapF[0x33] = &Chip8::op_FX33;
+    funcMapF[0x55] = &Chip8::op_FX55;
+    funcMapF[0x65] = &Chip8::op_FX65;
+    // Test funmap
+    funcMapF[0x1] = &Chip8::op_FXFF;
+
+}
+
+void Chip8::opcode_0()
+{
+    uint16_t lastThreeHex = this->get_opcode() & 0x0FFFu;
+
+    if (lastThreeHex == 0x0E0 || lastThreeHex == 0x0EE) ((*this).*(funcMap0[ lastThreeHex]))();
+    else ((*this).*(funcMap0[0]))();
+
+}
+
+void Chip8::opcode_8()
+{
+    uint8_t lastHex = get_opcode() & 0x000F;
+
+    ((*this).*(funcMap8[lastHex]))();
+
+}
+
+void Chip8::opcode_E()
+{
+    uint8_t lastTwoHex = get_opcode() & 0x00FF;
+
+    ((*this).*(funcMapE[lastTwoHex]))();
+
+}
+
+void Chip8::opcode_F()
+{
+    uint8_t lastTwoHex = get_opcode() & 0x00FF;
+
+    ((*this).*(funcMapF[lastTwoHex]))();
 }
 
 int Chip8::load_program(char const* filename)
@@ -97,6 +176,20 @@ void Chip8::clear_memory()
     {
         this->memory[i] = 0;
     }
+}
+
+int Chip8::cycle() 
+{
+    uint16_t firstHex = (get_opcode() & 0xF000) >> 12;
+
+    // increment program counter;
+    programCounter += 2;
+
+    // run the opcode base on firstHex
+    ((*this).*(funcMap[firstHex]))();
+
+    if (delayTimer > 0) --delayTimer;
+    if (soundTimer > 0) --soundTimer;
 }
 
 uint16_t Chip8::get_programCounter()
@@ -436,12 +529,22 @@ void Chip8::op_FX18()
     soundTimer = registers[v_x];
 }
 
-void Chip8::op_FX29()
+void Chip8::op_FX1E()
 {
     // add I, Vx
     uint8_t v_x = (get_opcode() & 0x0F00) >> 8;
 
     addressRegister += registers[v_x];
+}
+
+void Chip8::op_FX29()
+{
+    // ld I , spriteAdd[vx]
+    uint8_t v_x = (get_opcode() & 0x0F00) >> 8;
+    uint8_t val = registers[v_x];
+
+    // set addres to the Font specified by Vx
+    addressRegister = START_FONT_ADRESS + (5 * val);
 }
 
 void Chip8::op_FX33()
@@ -496,5 +599,5 @@ void Chip8::op_FXFF()
 
 void Chip8::callHello()
 {
-    ((*this).*(funcMap[1]))();
+    ((*this).*(funcMapF[1]))();
 }
