@@ -1,14 +1,16 @@
+#pragma once
+
 #include <cstdint>
+#include <random>
+#include <map>
 
 #define CHIP8_MEMORY_LIMIT 4096
-#define CHIP8_STACKSIZE 12
+#define DISPLAY_RESOLUTION_HORIZONTAL 64
+#define DISPLAY_RESOLUTION_VERTICAL 32
+
 
 class Chip8 
 {      
-  private:
-    // Everything in here should be public
-    // The user should be free to hack and mess aroudn with the processor
-
   public:
     uint8_t memory[CHIP8_MEMORY_LIMIT]{}; 
     uint8_t registers[16]{};
@@ -19,41 +21,9 @@ class Chip8
     uint8_t soundTimer{};
     uint8_t delayTimer{};
     uint16_t opcode{}; 
-    uint16_t keyboard{};
-
-    void op_0NNN_syscall();
-    void op_00E0_clrs();
-    void op_00EE_rts();
-    void op_1NNN_jmp();
-    void op_2NNN_call();
-    void op_3XNN_skipel();
-    void op_4NNN_skipnel();
-    void op_5XY0_skipeq();
-    void op_6XNN_movl();
-    void op_7XNN_addl();
-    void op_8XY0_or();
-    void op_8XY1_and();
-    void op_8XY3_xor();
-    void op_8XY4_add();
-    void op_8XY5_sub();
-    void op_8XY6_shiftr();
-    void op_8XY7_subrev();
-    void op_8XYE_shiftl();
-    void op_9XY0_skipne();
-    void op_ANNN_regil();
-    void op_BNNN_jmpadd();
-    void op_CXNN_randor();
-    void op_DXYN_draw();
-    void op_EX9E_skipeqkey();
-    void op_EXA1_skipnekey();
-    void op_FX07_movtimer();
-    void op_FX0A_getkey();
-    void op_FX15_timer();
-    void op_FX18_sound();
-    void op_FX29_addrei();
-    void op_FX33_bcd();
-    void op_FX55_regDump();
-    void op_FX65_regLoad();
+    uint8_t keyboard[16]{};
+    uint8_t displayGrid[DISPLAY_RESOLUTION_HORIZONTAL][DISPLAY_RESOLUTION_VERTICAL];
+    
 
     //Contructor
     Chip8();
@@ -69,4 +39,51 @@ class Chip8
     void set_keyboard(uint16_t _key);
     uint16_t get_keyboard();
     uint8_t get_processerInfo();
+    void callHello();
+    std::map<int, void (Chip8::*)()> funcMap;
+    void op_FXFF();
+    
+
+   
+
+  private:
+    std::random_device rd;
+    std::default_random_engine randGen;
+    std::uniform_int_distribution<uint8_t>  random_byte;
+
+    void op_0NNN();
+    void op_00E0();
+    void op_00EE();
+    void op_1NNN();
+    void op_2NNN();
+    void op_3XNN();
+    void op_4XNN();
+    void op_5XY0();
+    void op_6XNN();
+    void op_7XNN();
+    void op_8XY0();
+    void op_8XY1();
+    void op_8XY2();
+    void op_8XY3();
+    void op_8XY4();
+    void op_8XY5();
+    void op_8XY6();
+    void op_8XY7();
+    void op_8XYE();
+    void op_9XY0();
+    void op_ANNN();
+    void op_BNNN();
+    void op_CXNN();
+    void op_DXYN();
+    void op_EX9E();
+    void op_EXA1();
+    void op_FX07();
+    void op_FX0A();
+    void op_FX15();
+    void op_FX18();
+    void op_FX29();
+    void op_FX33();
+    void op_FX55();
+    void op_FX65();
+
 };

@@ -1,3 +1,12 @@
 run test1, load 
 
 bazel run --run_under="cd $PWD &&" //some:target
+
+to build bazel build //test:test-01-load
+
+bazel run //test:test-01-load
+
+or run it in the out folder
+
+first test load
+
