@@ -4,26 +4,28 @@
 #include <random>
 #include <map>
 
-#define CHIP8_MEMORY_LIMIT 4096
-#define DISPLAY_RESOLUTION_HORIZONTAL 64
-#define DISPLAY_RESOLUTION_VERTICAL 32
+const unsigned int CHIP8_MEMORY_LIMIT { 4096};
+const unsigned int DISPLAY_RESOLUTION_HORIZONTAL {64};
+const unsigned int DISPLAY_RESOLUTION_VERTICAL {32};
+const unsigned int REGISTER_SIZE {16};
+const unsigned int STACK_SIZE{16};
 
 
 class Chip8 
 {      
   public:
     uint8_t memory[CHIP8_MEMORY_LIMIT]{}; 
-    uint8_t registers[16]{};
+    uint8_t registers[REGISTER_SIZE]{};
     uint8_t addressRegister{};
     uint16_t programCounter{};
     uint8_t stackPointer{};
-    uint16_t stack[16]{};
+    uint16_t stack[STACK_SIZE]{};
     uint8_t soundTimer{};
     uint8_t delayTimer{};
     uint16_t opcode{}; 
     uint8_t keyboard[16]{};
     uint8_t displayGrid[DISPLAY_RESOLUTION_HORIZONTAL][DISPLAY_RESOLUTION_VERTICAL];
-    
+  
 
     //Contructor
     Chip8();
@@ -31,7 +33,7 @@ class Chip8
     int load_program(char const* filename);
     void set_memory(uint16_t _programCounter, uint8_t _memory_data);
     void clear_memory();
-    int cycle(); 
+    void cycle(); 
     uint16_t get_programCounter();
     void set_programCounter(uint16_t _programCounter);
     uint16_t get_opcode();
@@ -45,7 +47,7 @@ class Chip8
     std::map<int, void (Chip8::*)()> funcMap8;
     std::map<int, void (Chip8::*)()> funcMapE;
     std::map<int, void (Chip8::*)()> funcMapF;
-    void op_FXFF();
+    
     
 
    
@@ -90,6 +92,7 @@ class Chip8
     void op_FX33();
     void op_FX55();
     void op_FX65();
+    void op_FXFF();
     void opcode_0();
     void opcode_8();
     void opcode_E();

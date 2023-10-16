@@ -33,7 +33,7 @@ uint8_t fontset[FONTSET_SIZE] =
 
 
 Chip8::Chip8() :
-    randGen(std::chrono::system_clock::now().time_since_epoch().count())
+    randGen(rd())
 {
     // Init Chip8 starting address
     programCounter = START_ADDRESS;
@@ -44,10 +44,11 @@ Chip8::Chip8() :
 		memory[START_FONT_ADRESS + i] = fontset[i];
 	}
 
+    // create random number gen
     random_byte = std::uniform_int_distribution<uint8_t>(0, 255U);
 
     
-    //funcMap[1] = &Chip8::op_FXFF;
+    //create a map of all function
     funcMap[0x0] = &Chip8::opcode_0;
     funcMap[0x1] = &Chip8::op_1NNN;
     funcMap[0x2] = &Chip8::op_2NNN;
@@ -65,11 +66,12 @@ Chip8::Chip8() :
     funcMap[0xE] = &Chip8::opcode_E;
     funcMap[0xF] = &Chip8::opcode_F;
     
-
+    //create a map of all function starting with 0
     funcMap0[0x0E0] =&Chip8::op_00E0;
     funcMap0[0x0EE] =&Chip8::op_00EE;
     funcMap0[0x0] =&Chip8::op_0NNN;
 
+    //create a map of all function starting with 8
     funcMap8[0x0] = &Chip8::op_8XY0;
     funcMap8[0x1] = &Chip8::op_8XY1;
     funcMap8[0x2] = &Chip8::op_8XY2;
@@ -80,9 +82,11 @@ Chip8::Chip8() :
     funcMap8[0x7] = &Chip8::op_8XY7;
     funcMap8[0xE] = &Chip8::op_8XYE;
 
+    //create a map of all function starting with E
     funcMapE[0x9E] = &Chip8::op_EX9E;
     funcMapE[0x07] = &Chip8::op_EXA1;
 
+    //create a map of all function starting with F
     funcMapF[0x07] = &Chip8::op_FX07;
     funcMapF[0x0A] = &Chip8::op_FX0A;
     funcMapF[0x15] = &Chip8::op_FX15;
@@ -178,7 +182,7 @@ void Chip8::clear_memory()
     }
 }
 
-int Chip8::cycle() 
+void Chip8::cycle() 
 {
     uint16_t firstHex = (get_opcode() & 0xF000) >> 12;
 
@@ -456,6 +460,46 @@ void Chip8::op_CXNN()
 void Chip8::op_DXYN() 
 {
     // desp, vx, vy
+    // decode data from opcode
+    uint8_t v_x = (get_opcode() & 0x0F00) >> 8;
+    uint8_t v_y = (get_opcode() & 0x00F0) >> 4;
+    uint8_t height = (get_opcode() & 0x000Fu);
+
+    //Wrap if going beyond boundaries
+    unsigned int xPos = registers[v_x] % DISPLAY_RESOLUTION_HORIZONTAL;
+    unsigned int yPos = registers[v_y] % DISPLAY_RESOLUTION_VERTICAL;
+    
+    // set register 0xf 0, set to 1 if Xor
+    registers[0xF] = 0;
+
+    for (unsigned int row = 0; row < height; ++row)
+    {
+        // store the row of pixel 
+        uint8_t spriteByte = memory[addressRegister + row];
+
+        for(unsigned int col = 0; col < 8; ++col)
+        {
+            // get the pixel we're working with
+            uint8_t spritePixel = spriteByte & (0x80u >> col);
+            // get the display pixel 
+            uint8_t *displayPixel = &displayGrid[xPos + col][yPos + col];
+
+            // if we have to draw something on screen
+            if (spritePixel)
+            {
+                // if the display pixel was on
+                if (*displayPixel == 1)
+                {
+                    // both display and draw were 1 so there a collision
+                    registers[0xF] = 1;
+                }
+
+                // Xor the displayPixel
+                *displayPixel ^= 1;
+            }
+        }
+    }
+
 }
 
 void Chip8::op_EX9E() 
