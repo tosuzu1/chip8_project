@@ -1,5 +1,5 @@
 #include <iostream>
-#include "src/chip8.hpp"
+#include "chip8.hpp"
 #include <fstream>
 #include <iomanip>
 
@@ -9,7 +9,7 @@ int main (int argc, char *argv[])
 {
     Chip8 newProcessor;
 
-    newProcessor.load_program("/home/hongf/Desktop/chip8/data/Clock.ch8");
+    newProcessor.load_program("../data/Clock.ch8");
 
     std::cout // show the 0x prefix
             << std::internal // fill between the prefix and the number

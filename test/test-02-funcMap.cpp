@@ -1,5 +1,5 @@
 #include <iostream>
-#include "src/chip8.hpp"
+#include "chip8.hpp"
 #include <fstream>
 #include <iomanip>
 

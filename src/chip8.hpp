@@ -48,9 +48,6 @@ class Chip8
     std::map<int, void (Chip8::*)()> funcMapE;
     std::map<int, void (Chip8::*)()> funcMapF;
     
-    
-
-   
 
   private:
     std::random_device rd;
