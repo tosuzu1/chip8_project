@@ -30,9 +30,15 @@ int log_events(){
 }
 
 int main(int argc, char* argv[]) {
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_EVERYTHING);
 
-    SDL_Window * win = SDL_CreateWindow("Hello World!", 640, 480, 32, 0, SDL_WINDOW_SHOWN);
+    SDL_Window * win = SDL_CreateWindow(
+        "Hello World!", 
+        SDL_WINDOWPOS_CENTERED, 
+        SDL_WINDOWPOS_CENTERED,
+        640,
+        320, 
+        SDL_WINDOW_OPENGL);
 
     if (win == NULL) {
         printf("Could not create window: %s\n", SDL_GetError());
